@@ -60,7 +60,21 @@
     background: var(--primary); color: #fff; font-size: 16px; font-family: inherit; font-weight: 600;
   }
   .login-btn:hover { background: var(--primary-dark); }
-  .login-hint { margin-top: 16px; font-size: 12px; color: var(--text-muted); line-height: 1.7; }
+  .login-hint { margin-top: 12px; font-size: 12px; color: var(--text-muted); line-height: 1.7; background: var(--bg); border-radius: 8px; padding: 10px 12px; }
+  .pass-wrap { position: relative; }
+  .pass-wrap input { padding-right: 44px !important; }
+  .pass-toggle {
+    position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+    border: 0; background: transparent; cursor: pointer; font-size: 18px; line-height: 1;
+    color: var(--text-muted); padding: 6px; border-radius: 6px;
+  }
+  .pass-toggle:hover { background: #f1f5f9; color: var(--primary); }
+  .member-btn {
+    width: 100%; margin-top: 10px; padding: 8px; border: 1px dashed var(--border);
+    border-radius: 8px; cursor: pointer; background: transparent; color: var(--text-muted);
+    font-size: 13px; font-family: inherit;
+  }
+  .member-btn:hover { background: var(--bg); color: var(--primary); border-color: var(--primary-light); }
 
   /* ===== App shell ===== */
   .app-header {
@@ -326,13 +340,37 @@ function renderLogin() {
       '<h1>📐 ระบบวางบิลร้านไวนิล</h1>' +
       '<div class="sub">เข้าสู่ระบบเพื่อใช้งาน</div>' +
       '<div class="field"><label>อีเมล</label><input id="lg-email" type="email" placeholder="you@shop.com" autocomplete="username"></div>' +
-      '<div class="field"><label>รหัสผ่าน</label><input id="lg-pass" type="password" placeholder="********" autocomplete="current-password"></div>' +
+      '<div class="field"><label>รหัสผ่าน</label>' +
+        '<div class="pass-wrap">' +
+          '<input id="lg-pass" type="password" placeholder="********" autocomplete="current-password">' +
+          '<button type="button" class="pass-toggle" id="lg-toggle" onclick="toggleShowPass()" title="แสดง/ซ่อนรหัสผ่าน">👁</button>' +
+        '</div>' +
+      '</div>' +
       '<button class="login-btn" onclick="doLogin()">เข้าสู่ระบบ</button>' +
-      '<div class="login-hint">บัญชีเริ่มต้น (หลัง setup):<br>admin@pro-nara.com / admin123<br>manager@pro-nara.com / manager123<br>staff@pro-nara.com / staff123</div>' +
+      '<button type="button" class="member-btn" onclick="toggleMemberHint()">🔒 รหัสผ่านสมาชิก (ลืมรหัส?)</button>' +
+      '<div class="login-hint" id="lg-member-hint" style="display:none">' +
+        'บัญชีเริ่มต้น (หลัง setup):<br>' +
+        'admin@pro-nara.com / admin123<br>' +
+        'manager@pro-nara.com / manager123<br>' +
+        'staff@pro-nara.com / staff123' +
+      '</div>' +
     '</div></div>';
 
   var pass = document.getElementById('lg-pass');
   pass.addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+}
+function toggleShowPass() {
+  var inp = document.getElementById('lg-pass');
+  if (!inp) return;
+  var show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  var btn = document.getElementById('lg-toggle');
+  if (btn) btn.textContent = show ? '🙈' : '👁';
+  inp.focus();
+}
+function toggleMemberHint() {
+  var h = document.getElementById('lg-member-hint');
+  if (h) h.style.display = h.style.display === 'none' ? 'block' : 'none';
 }
 async function doLogin() {
   var email = document.getElementById('lg-email').value.trim();
