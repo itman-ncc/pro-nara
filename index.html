@@ -186,7 +186,8 @@ var APP = {
   products: [],
   customers: [],
   PAY_CURRENT_ORDER: null,
-  ORDER_CACHE: null
+  ORDER_CACHE: null,
+  loggingOut: false   // ป้องกันการ render error จาก request ที่ค้างหลัง logout
 };
 
 /* ================== UTIL ================== */
@@ -297,8 +298,10 @@ function navigate(route) {
   var renderer = ROUTES[route] || renderDashboard;
   renderer().then(function () {
     if (route !== APP.route) return; // โดดข้ามถ้าเปลี่ยน route ไปแล้ว
+    if (APP.loggingOut) return;
     window.scrollTo(0, 0);
   }).catch(function (err) {
+    if (APP.loggingOut) return; // หลัง logout แล้วไม่แสดง error ที่ขัดจังหวะหน้า login
     showPage('<div class="card"><h2>เกิดข้อผิดพลาด</h2><p>' + esc(err.message || err) + '</p></div>');
   });
 }
@@ -328,7 +331,9 @@ function buildShell() {
   });
 }
 function showPage(html) {
-  document.getElementById('page').innerHTML = html || '';
+  if (APP.loggingOut) return; // หลัง logout แล้วไม่ต้อง render เข้า shell ที่หายไป
+  var page = document.getElementById('page');
+  if (page) page.innerHTML = html || '';
 }
 
 /* ================== LOGIN ================== */
@@ -377,13 +382,17 @@ async function doLogin() {
   var res = await api('login', { email: email, password: password });
   if (!res || !res.ok) { toast((res && res.message) || 'เข้าสู่ระบบไม่สำเร็จ', 'error'); return; }
   APP.user = res.data;
+  APP.loggingOut = false;
   localStorage.setItem('vn_session', email);
   boot();
 }
 function doLogout() {
+  APP.loggingOut = true;   // กัน request ที่ค้างอยู่ทำให้หน้า login มี error
   APP.user = null;
+  document.getElementById('app').innerHTML =
+    '<div class="login-wrap" style="min-height:100vh;display:flex;align-items:center;justify-content:center"><div class="card">กำลังออกจากระบบ...</div></div>';
   localStorage.removeItem('vn_session');
-  renderLogin();
+  setTimeout(function () { renderLogin(); }, 150);
 }
 
 /* ================== BOOT ================== */
