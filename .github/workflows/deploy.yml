@@ -25,5 +25,12 @@ jobs:
       - name: Push to Apps Script
         run: clasp push --force
 
-      - name: Deploy as Web App
-        run: clasp deploy --description "auto ${{ github.sha }}"
+      - name: Create version
+        run: |
+          VERSION=$(clasp version "auto ${{ github.sha }}" | grep -oE '[0-9]+' | head -1)
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Deploy as Web App (keep URL)
+        run: clasp redeploy ${{ secrets.DEPLOYMENT_ID }} -V ${{ env.VERSION }}
+        env:
+          DEPLOYMENT_ID: ${{ secrets.DEPLOYMENT_ID }}

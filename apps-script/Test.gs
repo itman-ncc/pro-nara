@@ -346,3 +346,16 @@ function testAll() {
   Logger.log('ผล: ' + results.map(function (r) { return r[0] + '=' + (r[1] ? 'PASS' : 'FAIL'); }).join(', '));
   return { ok: pass === results.length, data: null, message: 'PASS ' + pass + '/' + results.length };
 }
+
+/**
+ * รัน test ทั้งหมดในฐานะ ADMIN (ตั้ง CURRENT_SESSION ก่อน)
+ * เหมาะสำหรับรันจาก Apps Script editor หลัง setup แล้ว
+ */
+function runTestsAsAdmin() {
+  setCurrentUser_({ email: 'admin@pro-nara.com', role: 'ADMIN', name: 'ผู้ดูแลระบบ' });
+  try {
+    return testAll();
+  } finally {
+    setCurrentUser_(null);
+  }
+}

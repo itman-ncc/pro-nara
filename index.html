@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>ระบบวางบิลร้านไวนิล</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --primary: #1d4ed8;
+    --primary-light: #3b82f6;
+    --primary-dark: #1e40af;
+    --bg: #f1f5f9;
+    --surface: #ffffff;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --danger: #dc2626;
+    --success: #16a34a;
+    --warning: #d97706;
+    --radius: 10px;
+    --shadow: 0 1px 3px rgba(0,0,0,.1), 0 1px 2px rgba(0,0,0,.06);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Sarabun', -apple-system, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  /* ===== Login ===== */
+  .login-wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+  }
+  .login-box {
+    width: 100%;
+    max-width: 400px;
+    background: #fff;
+    border-radius: 16px;
+    padding: 32px 28px;
+    box-shadow: 0 20px 50px rgba(0,0,0,.2);
+  }
+  .login-box h1 { font-size: 22px; margin-bottom: 4px; color: var(--primary); }
+  .login-box .sub { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+  .login-box .field { margin-bottom: 16px; }
+  .login-box label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
+  .login-box input {
+    width: 100%; padding: 11px 12px; border: 1px solid var(--border);
+    border-radius: 8px; font-size: 15px; font-family: inherit;
+  }
+  .login-box input:focus { outline: 2px solid var(--primary-light); border-color: var(--primary-light); }
+  .login-btn {
+    width: 100%; padding: 12px; border: 0; border-radius: 8px; cursor: pointer;
+    background: var(--primary); color: #fff; font-size: 16px; font-family: inherit; font-weight: 600;
+  }
+  .login-btn:hover { background: var(--primary-dark); }
+  .login-hint { margin-top: 16px; font-size: 12px; color: var(--text-muted); line-height: 1.7; }
+
+  /* ===== App shell ===== */
+  .app-header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    position: sticky; top: 0; z-index: 20; flex-wrap: wrap;
+  }
+  .brand { font-size: 18px; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+  .user-chip { font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 10px; }
+  .user-chip .logout { color: var(--danger); cursor: pointer; font-weight: 600; background:none; border:none; font-family:inherit; font-size:13px; }
+
+  .nav {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    background: var(--surface); padding: 8px 16px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 56px; z-index: 19;
+  }
+  .nav button {
+    padding: 8px 14px; border: 1px solid var(--border); background: var(--surface);
+    border-radius: 8px; cursor: pointer; font-size: 14px; font-family: inherit; color: var(--text-muted);
+    transition: all .15s;
+  }
+  .nav button:hover { background: var(--bg); }
+  .nav button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+  .app-container { max-width: 1200px; margin: 0 auto; padding: 16px; }
+  .card {
+    background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 18px; margin-bottom: 16px;
+  }
+  .card h2 { font-size: 18px; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .card h3 { margin: 12px 0 8px; }
+  .muted { color: var(--text-muted); }
+
+  .grid { display: grid; gap: 16px; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+
+  .form-group { margin-bottom: 12px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
+  .form-group input, .form-group select, .form-group textarea {
+    width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px;
+    font-size: 15px; font-family: inherit; background: #fff;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+    outline: 2px solid var(--primary-light); outline-offset: -1px; border-color: var(--primary-light);
+  }
+
+  .btn { padding: 9px 16px; border: 0; border-radius: 8px; font-size: 15px; font-family: inherit; cursor: pointer; transition: all .15s; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-primary { background: var(--primary); color: #fff; } .btn-primary:hover { background: var(--primary-dark); }
+  .btn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border); } .btn-secondary:hover { background: #e2e8f0; }
+  .btn-danger { background: var(--danger); color: #fff; } .btn-danger:hover { background: #b91c1c; }
+  .btn-success { background: var(--success); color: #fff; } .btn-success:hover { background: #15803d; }
+  .btn-sm { padding: 5px 10px; font-size: 13px; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .table-wrap { overflow-x: auto; }
+  table.data { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.data th, table.data td { padding: 9px 10px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.data th { background: var(--bg); font-weight: 600; color: var(--text-muted); font-size: 13px; }
+  table.data tr:hover td { background: #f8fafc; }
+
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .badge-draft { background: #e2e8f0; color: #475569; }
+  .badge-quoted { background: #fef3c7; color: #92400e; }
+  .badge-confirmed { background: #dbeafe; color: #1e40af; }
+  .badge-production { background: #ede9fe; color: #6d28d9; }
+  .badge-delivered { background: #dcfce7; color: #166534; }
+  .badge-billed { background: #ccfbf1; color: #115e59; }
+  .badge-partial { background: #ffedd5; color: #9a3412; }
+  .badge-paid { background: #bbf7d0; color: #14532d; }
+  .badge-cancelled { background: #fee2e2; color: #991b1b; }
+
+  .stat-card { text-align: center; padding: 16px; }
+  .stat-value { font-size: 26px; font-weight: 700; color: var(--primary); }
+  .stat-label { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+  .pos-relative { position: relative; }
+  .autocomplete-list { list-style: none; border: 1px solid var(--border); border-radius: 8px; max-height: 200px; overflow-y: auto; background: #fff; position: absolute; width: 100%; z-index: 50; }
+  .autocomplete-list li { padding: 8px 12px; cursor: pointer; font-size: 14px; }
+  .autocomplete-list li:hover { background: var(--primary); color: #fff; }
+
+  .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
+  .total-box { background: var(--bg); border-radius: 8px; padding: 12px 16px; font-size: 16px; }
+
+  /* Print template (A4) */
+  @media print { body * { visibility: hidden; } #print-area, #print-area * { visibility: visible; } #print-area { position: absolute; left: 0; top: 0; width: 100%; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script src="https://unpkg.com/sweetalert2@11"></script>
+<script>
+'use strict';
+
+/* ================== CONFIG ================== */
+var API_URL = 'https://script.google.com/macros/s/AKfycbxLoXZYwzNwfNCKtjcRafSMVAt-QCCEYHXs3NBDTVjpVGcrJSCTWmLmpWVFH0ijPx98/exec';
+
+var APP = {
+  user: null,          // {email, name, role}
+  route: 'dashboard',
+  products: [],
+  customers: [],
+  PAY_CURRENT_ORDER: null,
+  ORDER_CACHE: null
+};
+
+/* ================== UTIL ================== */
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+  });
+}
+function fmtMoney(n) {
+  return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0);
+}
+function toast(msg, type) {
+  var icon = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+  Swal.fire({ icon: icon, title: msg, toast: false, timer: 2200, showConfirmButton: false, timerProgressBar: true });
+}
+function badgeFor(status) {
+  var map = {
+    DRAFT:['badge-draft','ร่าง'], QUOTED:['badge-quoted','เสนอราคา'], CONFIRMED:['badge-confirmed','ยืนยัน'],
+    IN_PRODUCTION:['badge-production','กำลังผลิต'], DELIVERED:['badge-delivered','ส่งของแล้ว'],
+    BILLED:['badge-billed','วางบิลแล้ว'], PARTIAL_PAID:['badge-partial','จ่ายบางส่วน'],
+    PAID:['badge-paid','ชำระแล้ว'], CANCELLED:['badge-cancelled','ยกเลิก']
+  };
+  var m = map[status] || ['badge-draft', status];
+  return '<span class="badge ' + m[0] + '">' + m[1] + '</span>';
+}
+function docTypeName(t) {
+  return { QUOTATION:'ใบเสนอราคา', DELIVERY:'ใบส่งของ', BILLING:'ใบวางบิล', RECEIPT:'ใบเสร็จ', TAX_INVOICE:'ใบกำกับภาษี' }[t] || t;
+}
+function session() {
+  return { email: APP.user ? APP.user.email : '' };
+}
+function roleAtLeast(role) {
+  var order = { STAFF:1, MANAGER:2, ADMIN:3 };
+  return order[APP.user.role] >= (order[role] || 1);
+}
+
+/* ================== API HELPER ================== */
+async function api(action, payload) {
+  try {
+    var r = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: action, payload: payload || {}, session: session() })
+    });
+    return await r.json();
+  } catch (err) {
+    return { ok: false, data: null, message: 'เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว: ' + err.message };
+  }
+}
+async function mustApi(action, payload) {
+  var res = await api(action, payload);
+  if (!res || !res.ok) throw new Error((res && res.message) || 'เกิดข้อผิดพลาด');
+  return res.data;
+}
+
+/* ================== ROUTER ================== */
+function navigate(route) {
+  APP.route = route;
+  var el = document.getElementById('app');
+  var navBtns = document.querySelectorAll('.nav button');
+  navBtns.forEach(function (b) { b.classList.remove('active'); });
+  var active = document.querySelector('.nav button[data-route="' + route + '"]');
+  if (active) active.classList.add('active');
+
+  var renderer = ROUTES[route] || renderDashboard;
+  renderer().then(function (html) {
+    if (route !== APP.route) return; // โดดข้ามถ้าเปลี่ยน route ไปแล้ว
+    el.innerHTML = html;
+    window.scrollTo(0, 0);
+  }).catch(function (err) {
+    el.innerHTML = '<div class="app-container"><div class="card"><h2>เกิดข้อผิดพลาด</h2><p>' + esc(err.message || err) + '</p></div></div>';
+  });
+}
+var ROUTES = {};
+
+/* ================== APP SHELL ================== */
+function buildShell() {
+  var app = document.getElementById('app');
+  app.innerHTML =
+    '<header class="app-header">' +
+      '<div class="brand">📐 ระบบวางบิลร้านไวนิล</div>' +
+      '<div class="user-chip"><span>' + esc(APP.user.name) + ' (' + (APP.user.role || '') + ')</span><button class="logout" onclick="doLogout()">ออกจากระบบ</button></div>' +
+    '</header>' +
+    '<nav class="nav">' +
+      '<button data-route="dashboard">แดชบอร์ด</button>' +
+      '<button data-route="orders">ใบสั่งจ้าง</button>' +
+      '<button data-route="order-form">สร้างใบสั่งจ้าง</button>' +
+      '<button data-route="billing">วางบิล/เอกสาร</button>' +
+      '<button data-route="payment">รับชำระ</button>' +
+      '<button data-route="audit">ตรวจสอบ</button>' +
+      '<button data-route="settings">ตั้งค่า</button>' +
+    '</nav>' +
+    '<div id="page" class="app-container"></div>';
+
+  app.querySelectorAll('.nav button').forEach(function (b) {
+    b.addEventListener('click', function () { navigate(b.getAttribute('data-route')); });
+  });
+}
+function showPage(html) {
+  document.getElementById('page').innerHTML = html || '';
+}
+
+/* ================== LOGIN ================== */
+function renderLogin() {
+  document.getElementById('app').innerHTML =
+    '<div class="login-wrap"><div class="login-box">' +
+      '<h1>📐 ระบบวางบิลร้านไวนิล</h1>' +
+      '<div class="sub">เข้าสู่ระบบเพื่อใช้งาน</div>' +
+      '<div class="field"><label>อีเมล</label><input id="lg-email" type="email" placeholder="you@shop.com" autocomplete="username"></div>' +
+      '<div class="field"><label>รหัสผ่าน</label><input id="lg-pass" type="password" placeholder="********" autocomplete="current-password"></div>' +
+      '<button class="login-btn" onclick="doLogin()">เข้าสู่ระบบ</button>' +
+      '<div class="login-hint">บัญชีเริ่มต้น (หลัง setup):<br>admin@pro-nara.com / admin123<br>manager@pro-nara.com / manager123<br>staff@pro-nara.com / staff123</div>' +
+    '</div></div>';
+
+  var pass = document.getElementById('lg-pass');
+  pass.addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+}
+async function doLogin() {
+  var email = document.getElementById('lg-email').value.trim();
+  var password = document.getElementById('lg-pass').value;
+  if (!email || !password) { toast('กรุณากรอกอีเมลและรหัสผ่าน', 'error'); return; }
+  var res = await api('login', { email: email, password: password });
+  if (!res || !res.ok) { toast((res && res.message) || 'เข้าสู่ระบบไม่สำเร็จ', 'error'); return; }
+  APP.user = res.data;
+  localStorage.setItem('vn_session', email);
+  boot();
+}
+function doLogout() {
+  APP.user = null;
+  localStorage.removeItem('vn_session');
+  renderLogin();
+}
+
+/* ================== BOOT ================== */
+async function boot() {
+  buildShell();
+  try {
+    APP.products = (await mustApi('getProducts')).filter(function (p) { return !p.is_active || p.is_active === 'TRUE' || p.is_active === true; });
+  } catch (e) { APP.products = []; }
+  try {
+    APP.customers = (await mustApi('searchCustomers', { key: '' })) || [];
+  } catch (e) { APP.customers = []; }
+  navigate('dashboard');
+}
+
+/* ================== DASHBOARD ================== */
+ROUTES.dashboard = function () {
+  return mustApi('getDashboard').then(function (d) {
+    showPage(
+      '<div class="grid grid-4">' +
+        '<div class="card stat-card"><div class="stat-value">฿' + fmtMoney(d.month_sales) + '</div><div class="stat-label">ยอดขายเดือนนี้</div></div>' +
+        '<div class="card stat-card"><div class="stat-value" style="color:var(--warning)">฿' + fmtMoney(d.aging['0-30']) + '</div><div class="stat-label">ลูกหนี้ 0-30 วัน</div></div>' +
+        '<div class="card stat-card"><div class="stat-value" style="color:var(--warning)">฿' + fmtMoney(d.aging['31-60']) + '</div><div class="stat-label">ลูกหนี้ 31-60 วัน</div></div>' +
+        '<div class="card stat-card"><div class="stat-value" style="color:var(--danger)">฿' + fmtMoney(d.aging['60+']) + '</div><div class="stat-label">ลูกหนี้ 60+ วัน</div></div>' +
+      '</div>' +
+      '<div class="grid grid-2">' +
+        '<div class="card"><h2>งานค้างส่ง: <span style="color:var(--danger)">' + d.pending_deliveries + '</span></h2></div>' +
+        '<div class="card"><h2>วันนี้: ' + esc(d.today) + '</h2></div>' +
+      '</div>' +
+      '<div class="card"><h2>ใบสั่งจ้างล่าสุด</h2>' +
+        '<div class="table-wrap"><table class="data"><thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>วันที่</th><th>ยอดรวม</th><th>คงค้าง</th><th>สถานะ</th></tr></thead><tbody>' +
+        (d.recent_orders.map(function (o) {
+          return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td></tr>';
+        }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">ไม่มีข้อมูล</td></tr>') +
+        '</tbody></table></div></div>'
+    );
+  });
+};
+
+/* ================== ORDERS LIST ================== */
+ROUTES.orders = function () {
+  return mustApi('listOrders', {}).then(function (orders) {
+    var rows = orders.map(function (o) {
+      return '<tr>' +
+        '<td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td>' +
+        '<td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td>' +
+        '<td>' +
+          '<button class="btn btn-secondary btn-sm" onclick="openOrderDetail(\'' + esc(o.id) + '\')">ดู</button> ' +
+          (o.status !== 'CANCELLED' && o.status !== 'PAID' ? '<button class="btn btn-danger btn-sm" onclick="cancelOrderPrompt(\'' + esc(o.id) + '\')">ยกเลิก</button>' : '') +
+        '</td></tr>';
+    }).join('');
+    showPage(
+      '<div class="card"><h2>รายการใบสั่งจ้าง <button class="btn btn-primary" onclick="navigate(\'order-form\')">+ สร้างใหม่</button></h2>' +
+      '<div class="table-wrap"><table class="data"><thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>วันที่</th><th>ยอดรวม</th><th>คงค้าง</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody>' +
+      (rows || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">ยังไม่มีใบสั่งจ้าง</td></tr>') +
+      '</tbody></table></div></div>'
+    );
+  });
+};
+
+/* ================== ORDER FORM ================== */
+ROUTES['order-form'] = function () {
+  showPage(
+    '<div class="card"><h2>สร้างใบสั่งจ้าง</h2>' +
+    '<div class="form-group"><label>เลือกลูกค้า (พิมพ์ค้นหา)</label>' +
+      '<div class="pos-relative"><input id="cust-search" placeholder="ค้นหาชื่อ / เบอร์โทร..." autocomplete="off">' +
+      '<ul id="cust-list" class="autocomplete-list" style="display:none"></ul></div>' +
+      '<input type="hidden" id="cust-id">' +
+    '</div>' +
+    '<div class="grid grid-2">' +
+      '<div class="form-group"><label>โหมดขาย</label><select id="sale-mode"><option value="RETAIL">ขายปลีก</option><option value="WHOLESALE">ขายส่ง</option></select></div>' +
+      '<div class="form-group"><label>กำหนดส่ง</label><input id="due-date" type="date"></div>' +
+    '</div>' +
+    '<h3>รายการสินค้า</h3>' +
+    '<div id="items-box"></div>' +
+    '<button class="btn btn-secondary" onclick="addItemRow()">+ เพิ่มรายการ</button>' +
+    '<div class="grid grid-3" style="margin-top:14px">' +
+      '<div class="form-group"><label>ส่วนลด (฿)</label><input id="discount" type="number" value="0" step="0.01"></div>' +
+      '<div class="form-group"><label>รูปแบบภาษี</label><select id="vat-mode"><option value="NONE">ไม่มีภาษี</option><option value="EXCLUDE">ภาษี +7% (บวกเพิ่ม)</option><option value="INCLUDE">ภาษีรวม</option></select></div>' +
+      '<div class="form-group"><label>หัก ณ ที่จ่าย (฿)</label><input id="wht" type="number" value="0" step="0.01"></div>' +
+    '</div>' +
+    '<div class="total-box"><strong>ยอดรวม (Grand Total):</strong> ฿<span id="grand-total" style="font-weight:700;color:var(--primary)">0.00</span></div>' +
+    '<div style="margin-top:14px;display:flex;gap:8px"><button class="btn btn-primary" onclick="saveOrder()">บันทึกใบสั่งจ้าง</button><button class="btn btn-secondary" onclick="navigate(\'orders\')">ยกเลิก</button></div>' +
+    '</div>'
+  );
+  initOrderForm();
+};
+
+function initOrderForm() {
+  var custSearch = document.getElementById('cust-search');
+  var custList = document.getElementById('cust-list');
+  var dueDate = document.getElementById('due-date');
+  var d = new Date(); d.setDate(d.getDate() + 30);
+  dueDate.value = d.toISOString().slice(0, 10);
+
+  custSearch.addEventListener('input', function () {
+    var kw = this.value.trim().toLowerCase();
+    var matched = APP.customers.filter(function (c) {
+      return (String(c.name) + ' ' + String(c.phone) + ' ' + String(c.code)).toLowerCase().indexOf(kw) >= 0;
+    }).slice(0, 10);
+    if (!kw || !matched.length) { custList.style.display = 'none'; return; }
+    custList.innerHTML = matched.map(function (c) {
+      return '<li data-id="' + c.id + '" data-name="' + esc(c.name) + '" data-type="' + c.customer_type + '">' + esc(c.name) + ' (' + esc(c.phone) + ')</li>';
+    }).join('');
+    custList.style.display = 'block';
+    custList.querySelectorAll('li').forEach(function (li) {
+      li.addEventListener('click', function () {
+        document.getElementById('cust-id').value = this.getAttribute('data-id');
+        custSearch.value = this.getAttribute('data-name');
+        document.getElementById('sale-mode').value = this.getAttribute('data-type') === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL';
+        custList.style.display = 'none';
+      });
+    });
+  });
+  custSearch.addEventListener('blur', function () { setTimeout(function () { custList.style.display = 'none'; }, 200); });
+  addItemRow();
+}
+
+function productOptions() {
+  return '<option value="">-- เลือกสินค้า --</option>' + APP.products.map(function (p) {
+    return '<option value="' + p.id + '" data-retail="' + p.price_retail + '" data-whole="' + p.price_wholesale + '" data-name="' + esc(p.name) + '">' + esc(p.name) + '</option>';
+  }).join('');
+}
+
+function addItemRow() {
+  var box = document.getElementById('items-box');
+  if (!box) return;
+  var row = document.createElement('div');
+  row.className = 'item-row';
+  row.style.cssText = 'display:grid;grid-template-columns:2fr 2fr 1fr 1fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center';
+  row.innerHTML =
+    '<select class="item-prod">' + productOptions() + '</select>' +
+    '<input placeholder="รายละเอียด" class="item-desc">' +
+    '<input type="number" placeholder="กว้าง (ม.)" class="item-w" value="1">' +
+    '<input type="number" placeholder="สูง (ม.)" class="item-h" value="1">' +
+    '<input type="number" placeholder="จำนวน" class="item-qty" value="1">' +
+    '<input type="number" placeholder="ราคา/ตร.ม." class="item-price">' +
+    '<input type="number" placeholder="เพิ่มพิเศษ" class="item-extra" value="0">' +
+    '<button class="btn btn-danger" onclick="this.parentNode.remove();recalc()">✕</button>';
+  box.appendChild(row);
+
+  var prodSel = row.querySelector('.item-prod');
+  var desc = row.querySelector('.item-desc');
+  var price = row.querySelector('.item-price');
+  prodSel.addEventListener('change', function () {
+    var opt = prodSel.options[prodSel.selectedIndex];
+    var mode = document.getElementById('sale-mode').value;
+    var defaultPrice = mode === 'WHOLESALE' ? opt.getAttribute('data-whole') : opt.getAttribute('data-retail');
+    if (opt.value) { desc.value = opt.getAttribute('data-name'); price.value = defaultPrice; } else { desc.value = ''; price.value = ''; }
+    recalc();
+  });
+  document.getElementById('sale-mode').addEventListener('change', function () {
+    box.querySelectorAll('.item-row').forEach(function (r) {
+      var sel = r.querySelector('.item-prod');
+      var opt = sel.options[sel.selectedIndex];
+      if (opt && opt.value) {
+        var def = this.value === 'WHOLESALE' ? opt.getAttribute('data-whole') : opt.getAttribute('data-retail');
+        r.querySelector('.item-price').value = def;
+      }
+      recalc();
+    }.bind(this));
+  });
+  row.querySelectorAll('input').forEach(function (inp) { inp.addEventListener('input', recalc); });
+}
+
+function getItems() {
+  var items = [];
+  document.querySelectorAll('#items-box .item-row').forEach(function (row) {
+    items.push({
+      product_id: row.querySelector('.item-prod').value || null,
+      description: row.querySelector('.item-desc').value,
+      width_m: row.querySelector('.item-w').value,
+      height_m: row.querySelector('.item-h').value,
+      qty: row.querySelector('.item-qty').value,
+      unit_price: row.querySelector('.item-price').value !== '' ? Number(row.querySelector('.item-price').value) : null,
+      extra_charge: row.querySelector('.item-extra').value,
+      note: ''
+    });
+  });
+  return items;
+}
+
+function recalc() {
+  var items = getItems();
+  var sub = 0;
+  items.forEach(function (it) {
+    var w = Number(it.width_m) || 0, h = Number(it.height_m) || 0, q = Number(it.qty) || 1, p = Number(it.unit_price) || 0, ex = Number(it.extra_charge) || 0;
+    sub += (Math.max(w * h, 0)) * q * p + ex;
+  });
+  var discount = Number(document.getElementById('discount').value) || 0;
+  var vatMode = document.getElementById('vat-mode').value;
+  var wht = Number(document.getElementById('wht').value) || 0;
+  var vat = vatMode === 'EXCLUDE' ? sub * 0.07 : (vatMode === 'INCLUDE' ? sub * 7 / 107 : 0);
+  var gt = sub - discount + vat - wht;
+  var el = document.getElementById('grand-total'); if (el) el.textContent = fmtMoney(gt);
+}
+
+async function saveOrder() {
+  var custId = document.getElementById('cust-id').value;
+  if (!custId) { toast('กรุณาเลือกลูกค้า', 'error'); return; }
+  var payload = {
+    customer_id: custId,
+    sale_mode: document.getElementById('sale-mode').value,
+    due_date: document.getElementById('due-date').value,
+    discount_amt: document.getElementById('discount').value,
+    vat_mode: document.getElementById('vat-mode').value,
+    wht_amount: document.getElementById('wht').value,
+    items: getItems().filter(function (it) { return it.description; })
+  };
+  if (!payload.items.length) { toast('กรุณาเพิ่มรายการสินค้า', 'error'); return; }
+  var res = await api('createOrder', payload);
+  if (!res || !res.ok) { toast((res && res.message) || 'สร้างไม่สำเร็จ', 'error'); return; }
+  toast('สร้างใบสั่งจ้าง ' + res.data.doc_no + ' สำเร็จ', 'success');
+  setTimeout(function () { navigate('orders'); }, 500);
+}
+
+/* ================== ORDER DETAIL ================== */
+async function openOrderDetail(orderId) {
+  var res = await api('getOrderDetail', { id: orderId });
+  if (!res || !res.ok) { toast((res && res.message) || 'ไม่พบใบสั่งจ้าง', 'error'); return; }
+  var order = res.data.order;
+  var items = res.data.items;
+  var rows = items.map(function (it) {
+    return '<tr><td>' + esc(it.description) + '</td><td>' + esc(it.width_m) + 'x' + esc(it.height_m) + '</td><td>' + esc(it.qty) + '</td><td>' + esc(it.area_sqm) + '</td><td>' + fmtMoney(it.unit_price) + '</td><td>' + fmtMoney(it.line_total) + '</td></tr>';
+  }).join('');
+  Swal.fire({
+    title: 'ใบสั่งจ้าง ' + order.doc_no,
+    html: '<div style="text-align:left">' +
+      '<p><strong>ลูกค้า:</strong> ' + esc(order.customer_name) + '</p>' +
+      '<p><strong>วันที่:</strong> ' + esc(order.order_date) + ' &nbsp; <strong>สถานะ:</strong> ' + badgeFor(order.status) + '</p>' +
+      '<div class="table-wrap"><table class="data" style="margin-top:10px;width:100%"><thead><tr><th>รายการ</th><th>ขนาด</th><th>จำนวน</th><th>ตร.ม.</th><th>ราคา</th><th>รวม</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div style="margin-top:12px;text-align:right"><p>รวม: ฿' + fmtMoney(order.subtotal) + '</p><p>ภาษี: ฿' + fmtMoney(order.vat_amount) + '</p><p>หัก ณ ที่จ่าย: ฿' + fmtMoney(order.wht_amount) + '</p><p><strong>สุทธิ: ฿' + fmtMoney(order.grand_total) + '</strong></p></div>' +
+    '</div>',
+    width: 720,
+    showCloseButton: true,
+    showConfirmButton: false
+  });
+}
+
+function cancelOrderPrompt(orderId) {
+  Swal.fire({
+    title: 'ยืนยันการยกเลิก',
+    input: 'textarea',
+    inputLabel: 'เหตุผลการยกเลิก (ขั้นต่ำ 10 ตัวอักษร)',
+    inputPlaceholder: 'ระบุเหตุผล...',
+    inputValidator: function (value) { if (!value || value.trim().length < 10) return 'เหตุผลต้องยาวอย่างน้อย 10 ตัวอักษร'; },
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยันยกเลิก',
+    cancelButtonText: 'ปิด',
+    confirmButtonColor: '#dc2626'
+  }).then(function (result) {
+    if (result.isConfirmed) {
+      api('cancelOrder', { id: orderId, reason: result.value.trim() }).then(function (res) {
+        if (res && res.ok) { toast('ยกเลิกสำเร็จ (VOID ทั้งสาย)', 'success'); navigate('orders'); }
+        else toast((res && res.message) || 'ยกเลิกไม่สำเร็จ', 'error');
+      });
+    }
+  });
+}
+
+/* ================== BILLING ================== */
+ROUTES.billing = function () {
+  return mustApi('listOrders', {}).then(function (orders) {
+    var eligible = orders.filter(function (o) {
+      return ['DELIVERED','CONFIRMED','IN_PRODUCTION','BILLED','PARTIAL_PAID','QUOTED'].indexOf(o.status) >= 0 && o.status !== 'CANCELLED';
+    });
+    var rows = eligible.map(function (o) {
+      return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td>' +
+        '<td><button class="btn btn-secondary btn-sm" onclick="openBillingOrder(\'' + esc(o.id) + '\')">จัดการเอกสาร</button></td></tr>';
+    }).join('');
+    showPage(
+      '<div class="card"><h2>วางบิล / ออกเอกสาร</h2>' +
+      '<p class="muted" style="margin-bottom:12px">เลือกรายการเพื่อออกใบส่งของ (DO) ใบวางบิล (BN) ใบเสร็จ (RC) / ใบกำกับภาษี และพิมพ์เอกสาร</p>' +
+      '<div class="table-wrap"><table class="data"><thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>วันที่</th><th>ยอดรวม</th><th>คงค้าง</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody>' +
+      (rows || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">ยังไม่มีรายการที่พร้อมวางบิล</td></tr>') +
+      '</tbody></table></div></div>'
+    );
+  });
+};
+
+function hasReceipt(docs) {
+  return docs.some(function (d) { return ['RECEIPT','TAX_INVOICE'].indexOf(d.doc_type) >= 0 && d.status === 'ACTIVE'; });
+}
+
+async function openBillingOrder(orderId) {
+  var res = await api('getOrderDetail', { id: orderId });
+  if (!res || !res.ok) { toast((res && res.message) || 'ไม่พบใบสั่งจ้าง', 'error'); return; }
+  var order = res.data.order;
+  var dr = await api('listDocuments', { order_id: orderId });
+  var docs = (dr && dr.data) || [];
+
+  var getLocked = ['PARTIAL_PAID','PAID'].indexOf(order.status) >= 0 || hasReceipt(docs);
+  var canBill = ['DELIVERED','CONFIRMED','IN_PRODUCTION','BILLED','QUOTED'].indexOf(order.status) >= 0;
+  var canReceipt = ['BILLED','PARTIAL_PAID'].indexOf(order.status) >= 0 && Number(order.balance) <= 0.01 && !getLocked;
+
+  var docBtns = '';
+  if (canBill) docBtns += '<button class="btn btn-primary" id="b-bill">ออกใบวางบิล (BN)</button> ';
+  docBtns += '<button class="btn btn-secondary" id="b-delivery">ใบส่งของ (DO)</button> ';
+  if (canReceipt && !hasReceipt(docs)) docBtns += '<button class="btn btn-success" id="b-receipt">ออกใบเสร็จ (RC)</button> ';
+  if (hasReceipt(docs)) docBtns += '<span class="badge badge-paid">ล็อกแล้ว (มีใบเสร็จ)</span> ';
+
+  var docsTable = docs.length ? '<h4 style="margin:14px 0 8px">เอกสารที่ออกแล้ว</h4><div class="table-wrap"><table class="data"><thead><tr><th>เลขที่</th><th>ประเภท</th><th>วันที่</th><th>พิมพ์</th><th>ยกเลิก</th></tr></thead><tbody>' +
+    docs.map(function (d) {
+      var printBtn = d.status === 'ACTIVE' ? '<button class="btn btn-secondary btn-sm" onclick="printDoc(\'' + esc(d.id) + '\')">🖨️ พิมพ์</button>' : '<span class="badge badge-cancelled">' + esc(d.status) + '</span>';
+      var cancelBtn = d.status === 'ACTIVE' ? '<button class="btn btn-danger btn-sm" onclick="cancelDocPrompt(\'' + esc(d.id) + '\',\'' + esc(d.doc_no) + '\')">ยกเลิก</button>' : '';
+      return '<tr><td>' + esc(d.doc_no) + '</td><td>' + docTypeName(d.doc_type) + '</td><td>' + esc(d.issue_date) + '</td><td>' + printBtn + '</td><td>' + cancelBtn + '</td></tr>';
+    }).join('') + '</tbody></table></div>' : '';
+
+  Swal.fire({
+    title: 'จัดการเอกสาร ' + order.doc_no,
+    html: '<div style="text-align:left">' +
+      '<p><strong>' + esc(order.doc_no) + '</strong> — ' + badgeFor(order.status) + '</p>' +
+      '<p><strong>ลูกค้า:</strong> ' + esc(order.customer_name) + '</p>' +
+      '<p><strong>ยอดรวม:</strong> ฿' + fmtMoney(order.grand_total) + ' | <strong>ชำระแล้ว:</strong> ฿' + fmtMoney(order.paid_total) + ' | <strong>คงค้าง:</strong> ฿' + fmtMoney(order.balance) + '</p>' +
+      '<div style="margin:12px 0">' + docBtns + '</div>' + docsTable +
+    '</div>',
+    width: 780,
+    showCloseButton: true,
+    showConfirmButton: false,
+    didOpen: function () {
+      var b = document.getElementById('b-bill'); if (b) b.onclick = function () { issueDocType(order.id, 'BILLING'); };
+      var d = document.getElementById('b-delivery'); if (d) d.onclick = function () { issueDocType(order.id, 'DELIVERY'); };
+      var r = document.getElementById('b-receipt'); if (r) r.onclick = function () { issueDocType(order.id, 'RECEIPT'); };
+    }
+  });
+}
+
+async function issueDocType(orderId, docType) {
+  var res = await api('issueDocument', { order_id: orderId, doc_type: docType });
+  if (!res || !res.ok) { toast((res && res.message) || 'ออกเอกสารไม่สำเร็จ', 'error'); return; }
+  var doc = res.data;
+  Swal.fire({
+    icon: 'success',
+    title: 'ออกเอกสารสำเร็จ: ' + doc.doc_no,
+    html: '<p>' + docTypeName(doc.doc_type) + '</p><button class="btn btn-primary" id="print-now">🖨️ พิมพ์เอกสาร</button>',
+    showCloseButton: true,
+    showConfirmButton: false,
+    didOpen: function () {
+      document.getElementById('print-now').onclick = function () { printDoc(doc.id); };
+    }
+  });
+  navigate('billing');
+}
+
+function cancelDocPrompt(docId, docNo) {
+  Swal.fire({
+    title: 'ยกเลิก ' + docNo,
+    input: 'textarea',
+    inputLabel: 'เหตุผลการยกเลิก (ขั้นต่ำ 10 ตัวอักษร)',
+    inputValidator: function (value) { if (!value || value.trim().length < 10) return 'เหตุผลต้องยาวอย่างน้อย 10 ตัวอักษร'; },
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยันยกเลิก',
+    confirmButtonColor: '#dc2626'
+  }).then(function (result) {
+    if (result.isConfirmed) {
+      api('cancelFromDocument', { id: docId, reason: result.value.trim() }).then(function (res) {
+        if (res && res.ok) { toast('ยกเลิก ' + docNo + ' สำเร็จ (VOID ทั้งสาย)', 'success'); navigate('billing'); }
+        else toast((res && res.message) || 'ยกเลิกไม่สำเร็จ', 'error');
+      });
+    }
+  });
+}
+
+/* ================== PRINT ================== */
+async function printDoc(docId) {
+  var res = await api('getDocument', { id: docId });
+  if (!res || !res.ok || !res.data) { toast('ไม่พบเอกสาร', 'error'); return; }
+  var doc = res.data;
+  await api('printDocument', { id: docId });
+  renderPrint(doc);
+}
+
+function renderPrint(doc) {
+  var snap = doc.snapshot || {};
+  var order = snap.order || {};
+  var items = snap.items || [];
+  var typeName = docTypeName(doc.doc_type);
+  var wm = doc.status === 'VOID' ? '<div class="wm">ยกเลิก</div>' : '';
+  var rows = items.map(function (it) {
+    return '<tr><td>' + esc(it.line_no || '') + '</td><td>' + esc(it.description) + '</td><td>' + esc(it.qty) + '</td><td>' + esc(it.area_sqm) + ' ตร.ม.</td><td>' + fmtMoney(it.unit_price) + '</td><td>' + fmtMoney(it.line_total) + '</td></tr>';
+  }).join('');
+
+  var html = '<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>' + typeName + '</title>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">' +
+    '<style>' +
+    '@page { size: A4; margin: 12mm; }' +
+    '* { box-sizing: border-box; margin: 0; padding: 0; }' +
+    'body { font-family: "Sarabun", sans-serif; color: #111; padding: 20px; }' +
+    '.wm { position: fixed; top: 40%; left: 50%; transform: translate(-50%,-50%) rotate(-30deg); font-size: 90px; color: rgba(220,38,38,.18); font-weight: 800; z-index: 99; pointer-events: none; }' +
+    '.btnp { margin-bottom: 14px; padding: 10px 16px; background: #1d4ed8; color: #fff; border: 0; border-radius: 6px; cursor: pointer; }' +
+    '.hdr { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 16px; }' +
+    '.title { font-size: 26px; font-weight: 700; }' +
+    'table { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 12px; }' +
+    'th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; }' +
+    'th { background: #f1f5f9; }' +
+    '.tot { text-align: right; margin-top: 12px; line-height: 1.7; }' +
+    '@media print { .btnp { display: none; } }' +
+    '</style></head><body>' +
+    '<button class="btnp" onclick="window.print()">🖨️ พิมพ์เอกสาร</button>' + wm +
+    '<div class="hdr"><div><div class="title">' + typeName + '</div><div>ร้านไวนิล</div></div><div style="text-align:right"><strong>' + esc(doc.doc_no) + '</strong><br>' + esc(doc.issue_date || '') + '</div></div>' +
+    '<p><strong>ลูกค้า:</strong> ' + esc(order.customer_name || '') + '</p>' +
+    '<table><thead><tr><th>#</th><th>รายการ</th><th>จำนวน</th><th>พื้นที่</th><th>ราคา</th><th>รวม</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+    '<div class="tot">' +
+      '<p>รวม: ฿' + fmtMoney(order.subtotal) + '</p>' +
+      '<p>ภาษี: ฿' + fmtMoney(order.vat_amount) + '</p>' +
+      '<p>หัก ณ ที่จ่าย: ฿' + fmtMoney(order.wht_amount) + '</p>' +
+      '<p><strong>สุทธิ: ฿' + fmtMoney(doc.total_amount != null ? doc.total_amount : order.grand_total) + '</strong></p>' +
+    '</div>' +
+    '<p style="margin-top:12px"><strong>กำหนดชำระ:</strong> ' + esc(doc.due_date || order.due_date || '') + '</p>' +
+    '</body></html>';
+
+  var w = window.open('', '_blank');
+  if (!w) { toast('กรุณาอนุญาตให้เปิดหน้าต่างใหม่', 'error'); return; }
+  w.document.write(html);
+  w.document.close();
+}
+
+/* ================== PAYMENT ================== */
+ROUTES.payment = function () {
+  var options = '<option value="">-- เลือกลูกค้า --</option>' + APP.customers.map(function (c) { return '<option value="' + c.id + '">' + esc(c.name) + '</option>'; }).join('');
+  showPage(
+    '<div class="card"><h2>รับชำระเงิน</h2>' +
+    '<div class="form-group"><label>เลือกลูกค้า</label><select id="pay-cust" onchange="loadDueOrders()">' + options + '</select></div>' +
+    '<div id="due-orders"></div>' +
+    '<div id="pay-form"></div>' +
+    '</div>'
+  );
+};
+
+async function loadDueOrders() {
+  var custId = document.getElementById('pay-cust').value;
+  var box = document.getElementById('due-orders');
+  var form = document.getElementById('pay-form');
+  if (!custId) { box.innerHTML = ''; form.innerHTML = ''; return; }
+  var res = await api('listDueOrders', { customer_id: custId });
+  var orders = (res && res.data) || [];
+  if (!orders.length) { box.innerHTML = '<p class="muted">ไม่มียอดค้างชำระ</p>'; form.innerHTML = ''; return; }
+  var rows = orders.map(function (o) {
+    return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td><button class="btn btn-success btn-sm" onclick="selectOrderToPay(\'' + esc(o.id) + '\')">รับชำระ</button></td></tr>';
+  }).join('');
+  box.innerHTML = '<div class="table-wrap"><table class="data"><thead><tr><th>เลขที่</th><th>วันที่</th><th>ยอดรวม</th><th>คงค้าง</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  form.innerHTML = '';
+}
+
+async function selectOrderToPay(orderId) {
+  var res = await api('getOrderDetail', { id: orderId });
+  if (!res || !res.ok) { toast((res && res.message) || 'ไม่พบใบสั่งจ้าง', 'error'); return; }
+  var order = res.data.order;
+  APP.PAY_CURRENT_ORDER = order;
+  var form = document.getElementById('pay-form');
+  form.innerHTML =
+    '<h3 style="margin:14px 0 8px">รับชำระ ' + esc(order.doc_no) + '</h3>' +
+    '<p>ยอดค้างชำระ: <strong>฿' + fmtMoney(order.balance) + '</strong> (ยอดรวม ฿' + fmtMoney(order.grand_total) + ', ชำระแล้ว ฿' + fmtMoney(order.paid_total) + ')</p>' +
+    '<div class="grid grid-2" style="margin-top:12px">' +
+      '<div class="form-group"><label>จำนวนเงิน (฿)</label><input id="pay-amount" type="number" step="0.01" value="' + order.balance + '" max="' + order.balance + '"></div>' +
+      '<div class="form-group"><label>วิธีชำระ</label><select id="pay-method"><option value="CASH">เงินสด</option><option value="TRANSFER">โอน</option><option value="QR">QR</option><option value="CHEQUE">เช็ค</option><option value="CREDIT_CARD">บัตร</option></select></div>' +
+      '<div class="form-group"><label>อ้างอิง (เลขที่โอน/เช็ค)</label><input id="pay-ref"></div>' +
+      '<div class="form-group"><label>หัก ณ ที่จ่าย (฿)</label><input id="pay-wht" type="number" step="0.01" value="0"></div>' +
+      '<div class="form-group" style="grid-column:1/-1"><label>หมายเหตุ</label><input id="pay-note"></div>' +
+    '</div>' +
+    '<button class="btn btn-primary" onclick="submitPayment()">ยืนยันรับชำระ</button></div>';
+}
+
+async function submitPayment() {
+  if (!APP.PAY_CURRENT_ORDER) { toast('กรุณาเลือกรายการก่อน', 'error'); return; }
+  var amount = Number(document.getElementById('pay-amount').value);
+  var balance = Number(APP.PAY_CURRENT_ORDER.balance);
+  if (!amount || amount <= 0) { toast('กรุณากรอกจำนวนเงิน', 'error'); return; }
+  if (amount > balance + 0.01) { toast('จำนวนเงินเกินยอดคงค้าง (' + fmtMoney(balance) + ')', 'error'); return; }
+  var payload = {
+    order_id: APP.PAY_CURRENT_ORDER.id,
+    amount: amount,
+    method: document.getElementById('pay-method').value,
+    bank_ref: document.getElementById('pay-ref').value,
+    wht_deducted: Number(document.getElementById('pay-wht').value) || 0,
+    note: document.getElementById('pay-note').value
+  };
+  var res = await api('recordPayment', payload);
+  if (!res || !res.ok) { toast((res && res.message) || 'รับชำระไม่สำเร็จ', 'error'); return; }
+  var extra = '';
+  if (res.data && res.data.receipt) extra = '<br>ออกใบเสร็จ <strong>' + esc(res.data.receipt.doc_no) + '</strong> อัตโนมัติ';
+  Swal.fire({ icon: 'success', title: 'รับชำระสำเร็จ', html: '<p>รับชำระ ฿' + fmtMoney(amount) + ' เรียบร้อย' + extra + '</p>' });
+  loadDueOrders();
+}
+
+/* ================== AUDIT ================== */
+ROUTES.audit = function () {
+  showPage(
+    '<div class="card"><h2>ตรวจสอบย้อนหลัง</h2>' +
+    '<div class="filter-bar">' +
+      '<div class="form-group" style="min-width:150px"><label>ประเภท</label><select id="audit-action">' +
+        '<option value="">ทั้งหมด</option><option>CREATE</option><option>UPDATE</option><option>STATUS_CHANGE</option><option>ISSUE_DOC</option><option>PAYMENT</option><option>VOID</option><option>CANCEL</option><option>PRINT</option><option>LOGIN</option>' +
+      '</select></div>' +
+      '<div class="form-group" style="min-width:200px;flex:1"><label>คำค้น</label><input id="audit-keyword" placeholder="เลขที่เอกสาร / อีเมล / เหตุผล"></div>' +
+      '<div class="form-group"><button class="btn btn-primary" onclick="loadAuditLogs()">ค้นหา</button></div>' +
+    '</div>' +
+    '<div id="audit-result"></div>' +
+    '</div>'
+  );
+  var kw = document.getElementById('audit-keyword');
+  kw.addEventListener('keydown', function (e) { if (e.key === 'Enter') loadAuditLogs(); });
+  loadAuditLogs();
+};
+
+function auditBadge(action) {
+  var map = { CREATE:'badge-confirmed', UPDATE:'badge-quoted', STATUS_CHANGE:'badge-production', ISSUE_DOC:'badge-billed', PAYMENT:'badge-paid', VOID:'badge-cancelled', CANCEL:'badge-cancelled', PRINT:'badge-draft', LOGIN:'badge-draft' };
+  return map[action] || 'badge-draft';
+}
+function auditLabel(action) {
+  var map = { CREATE:'สร้าง', UPDATE:'แก้ไข', STATUS_CHANGE:'เปลี่ยนสถานะ', ISSUE_DOC:'ออกเอกสาร', PAYMENT:'รับชำระ', VOID:'ยกเลิก(VOID)', CANCEL:'ยกเลิก', PRINT:'พิมพ์', LOGIN:'เข้าสู่ระบบ' };
+  return map[action] || action;
+}
+
+async function loadAuditLogs() {
+  var box = document.getElementById('audit-result');
+  var action = document.getElementById('audit-action').value;
+  var keyword = document.getElementById('audit-keyword').value.trim();
+  var res = await api('listAuditLogs', { action: action, keyword: keyword, limit: 200 });
+  var logs = (res && res.data) || [];
+  if (!logs.length) { box.innerHTML = '<p class="muted">ไม่พบประวัติ</p>'; return; }
+  var rows = logs.map(function (l) {
+    var fields = (l.changed_fields_arr && l.changed_fields_arr.length) ? l.changed_fields_arr.join(', ') : '';
+    return '<tr>' +
+      '<td>' + esc(String(l.ts || '').replace('T',' ').slice(0,19)) + '</td>' +
+      '<td><span class="badge ' + auditBadge(l.action) + '">' + esc(auditLabel(l.action)) + '</span></td>' +
+      '<td>' + esc(l.entity || '') + '</td>' +
+      '<td>' + esc(l.doc_no || '') + '</td>' +
+      '<td>' + esc(l.user_email || '') + '</td>' +
+      '<td>' + esc(fields) + '</td>' +
+      '<td>' + esc(l.reason || '') + '</td></tr>';
+  }).join('');
+  box.innerHTML = '<div class="table-wrap"><table class="data"><thead><tr><th>เวลา</th><th>การกระทำ</th><th>หมวด</th><th>เลขที่</th><th>ผู้ใช้</th><th>ฟิลด์</th><th>เหตุผล</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+}
+
+/* ================== SETTINGS ================== */
+ROUTES.settings = function () {
+  return Promise.all([
+    api('searchCustomers', { key: '' }),
+    api('listUsers', {})
+  ]).then(function (res) {
+    var customers = (res[0] && res[0].data) || [];
+    var users = (res[1] && res[1].data) || [];
+    var custRows = customers.map(function (c) {
+      return '<tr><td>' + esc(c.code) + '</td><td>' + esc(c.name) + '</td><td>' + esc(c.phone) + '</td><td>' + esc(c.customer_type) + '</td><td>' + esc(c.credit_days) + '</td></tr>';
+    }).join('');
+    var userRows = users.map(function (u) {
+      return '<tr><td>' + esc(u.email) + '</td><td>' + esc(u.name) + '</td><td>' + esc(u.role) + '</td><td>' + (u.is_active === 'TRUE' || u.is_active === true ? 'ใช้งาน' : 'ปิด') + '</td><td>' + (u.has_password ? 'มี' : 'ไม่มี') + '</td></tr>';
+    }).join('');
+
+    var adminExtra = roleAtLeast('ADMIN')
+      ? '<div class="card"><h3>จัดการผู้ใช้</h3>' +
+        '<div class="grid grid-3">' +
+          '<div class="form-group"><label>อีเมล *</label><input id="u-email"></div>' +
+          '<div class="form-group"><label>ชื่อ</label><input id="u-name"></div>' +
+          '<div class="form-group"><label>บทบาท</label><select id="u-role"><option value="STAFF">พนักงาน</option><option value="MANAGER">ผู้จัดการ</option><option value="ADMIN">ผู้ดูแล</option></select></div>' +
+          '<div class="form-group"><label>รหัสผ่าน (ปล่อยว่าง = คงเดิม)</label><input id="u-pass"></div>' +
+          '<div class="form-group"><label>สถานะ</label><select id="u-active"><option value="TRUE">ใช้งาน</option><option value="FALSE">ปิด</option></select></div>' +
+          '<div class="form-group" style="align-self:end"><button class="btn btn-primary" onclick="saveUserFromForm()">บันทึกผู้ใช้</button></div>' +
+        '</div>' +
+        '<div class="table-wrap"><table class="data"><thead><tr><th>อีเมล</th><th>ชื่อ</th><th>บทบาท</th><th>สถานะ</th><th>รหัส</th></tr></thead><tbody>' + userRows + '</tbody></table></div>' +
+      '</div>'
+      : '';
+
+    showPage(
+      '<div class="card"><h2>ตั้งค่า</h2>' +
+      '<h3>สร้างลูกค้าใหม่</h3>' +
+      '<div class="grid grid-2">' +
+        '<div class="form-group"><label>ชื่อลูกค้า *</label><input id="nc-name"></div>' +
+        '<div class="form-group"><label>ประเภท</label><select id="nc-type"><option value="RETAIL">ขายปลีก</option><option value="WHOLESALE">ขายส่ง</option></select></div>' +
+        '<div class="form-group"><label>เบอร์โทร</label><input id="nc-phone"></div>' +
+        '<div class="form-group"><label>เลขผู้เสียภาษี</label><input id="nc-tax"></div>' +
+        '<div class="form-group"><label>เครดิต (วัน)</label><input id="nc-credit" type="number" value="0"></div>' +
+        '<div class="form-group"><label>ที่อยู่</label><input id="nc-addr"></div>' +
+      '</div>' +
+      '<button class="btn btn-primary" onclick="saveNewCustomer()">บันทึกลูกค้า</button>' +
+      '</div>' +
+      '<div class="card"><h3>ลูกค้าในระบบ</h3><div class="table-wrap"><table class="data"><thead><tr><th>รหัส</th><th>ชื่อ</th><th>โทร</th><th>ประเภท</th><th>เครดิต</th></tr></thead><tbody>' + (custRows || '<tr><td colspan="5" class="muted">ไม่มีลูกค้า</td></tr>') + '</tbody></table></div></div>' +
+      adminExtra +
+      '<div class="card"><h3>อื่นๆ</h3>' +
+      '<button class="btn btn-secondary" onclick="manualBackup()">💰 สำรองข้อมูลตอนนี้ (Backup)</button> ' +
+      (roleAtLeast('ADMIN') ? '<button class="btn btn-secondary" onclick="setupSystem()">⚙️ รัน Setup (สร้างชีต)</button>' : '') +
+      '<button class="btn btn-secondary" onclick="changeMyPassword()">🔑 เปลี่ยนรหัสผ่าน</button>' +
+      '</div>'
+    );
+  });
+};
+
+async function saveNewCustomer() {
+  var name = document.getElementById('nc-name').value.trim();
+  if (!name) { toast('กรุณากรอกชื่อลูกค้า', 'error'); return; }
+  var payload = {
+    name: name,
+    customer_type: document.getElementById('nc-type').value,
+    phone: document.getElementById('nc-phone').value,
+    tax_id: document.getElementById('nc-tax').value,
+    credit_days: document.getElementById('nc-credit').value,
+    address: document.getElementById('nc-addr').value
+  };
+  var res = await api('createCustomer', payload);
+  if (!res || !res.ok) { toast((res && res.message) || 'สร้างลูกค้าไม่สำเร็จ', 'error'); return; }
+  toast('สร้างลูกค้า ' + res.data.code + ' สำเร็จ', 'success');
+  APP.customers = (await mustApi('searchCustomers', { key: '' })) || [];
+  navigate('settings');
+}
+
+async function saveUserFromForm() {
+  var email = document.getElementById('u-email').value.trim();
+  if (!email) { toast('กรุณากรอกอีเมลผู้ใช้', 'error'); return; }
+  var payload = {
+    email: email,
+    name: document.getElementById('u-name').value,
+    role: document.getElementById('u-role').value,
+    is_active: document.getElementById('u-active').value,
+    password: document.getElementById('u-pass').value
+  };
+  var res = await api('saveUser', payload);
+  if (!res || !res.ok) { toast((res && res.message) || 'บันทึกผู้ใช้ไม่สำเร็จ', 'error'); return; }
+  toast(res.message || 'บันทึกผู้ใช้สำเร็จ', 'success');
+  navigate('settings');
+}
+
+async function manualBackup() {
+  var res = await api('manualBackup', {});
+  if (res && res.ok) toast(res.message || 'สำรองข้อมูลสำเร็จ', 'success');
+  else toast((res && res.message) || 'สำรองข้อมูลไม่สำเร็จ', 'error');
+}
+
+async function setupSystem() {
+  var res = await api('setupAll', {});
+  if (res && res.ok) { toast(res.message, 'success'); location.reload(); }
+  else toast((res && res.message) || 'Setup ไม่สำเร็จ', 'error');
+}
+
+function changeMyPassword() {
+  Swal.fire({
+    title: 'เปลี่ยนรหัสผ่าน',
+    html:
+      '<div style="text-align:left"><div class="form-group"><label>รหัสผ่านเดิม</label><input id="op" type="password"></div>' +
+      '<div class="form-group"><label>รหัสผ่านใหม่</label><input id="np" type="password"></div></div>',
+    showCancelButton: true,
+    confirmButtonText: 'เปลี่ยน',
+    preConfirm: async function () {
+      var oldPwd = document.getElementById('op').value;
+      var newPwd = document.getElementById('np').value;
+      var res = await api('changePassword', { email: APP.user.email, old_password: oldPwd, new_password: newPwd });
+      if (!res || !res.ok) { Swal.showValidationMessage((res && res.message) || 'เปลี่ยนรหัสไม่สำเร็จ'); return false; }
+      return true;
+    }
+  }).then(function (result) {
+    if (result.isConfirmed) toast('เปลี่ยนรหัสผ่านสำเร็จ', 'success');
+  });
+}
+
+/* ================== INIT ================== */
+(async function init() {
+  var savedEmail = localStorage.getItem('vn_session');
+  if (savedEmail) {
+    var res = await api('whoAmI', { email: savedEmail });
+    if (res && res.ok && res.data && (res.data.is_active === 'TRUE' || res.data.is_active === true)) {
+      APP.user = res.data;
+      boot();
+      return;
+    }
+    localStorage.removeItem('vn_session');
+  }
+  renderLogin();
+})();
+</script>
+</body>
+</html>

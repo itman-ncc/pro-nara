@@ -33,7 +33,7 @@ var SETUP_SHEETS = {
   'CancelLog': ['id', 'ts', 'user_email', 'root_order_id', 'root_doc_no', 'trigger_doc_no', 'reason',
     'affected_docs_json', 'batch_id'],
   'Counters': ['key', 'last_no'],
-  'Users': ['email', 'name', 'role', 'is_active']
+  'Users': ['email', 'name', 'role', 'is_active', 'password']
 };
 
 /**
@@ -53,9 +53,9 @@ var SEED_PRODUCTS = [
  * @type {Array<Object>}
  */
 var SEED_USERS = [
-  { email: 'admin@pro-nara.com', name: 'ผู้ดูแลระบบ', role: 'ADMIN', is_active: 'TRUE' },
-  { email: 'manager@pro-nara.com', name: 'ผู้จัดการ', role: 'MANAGER', is_active: 'TRUE' },
-  { email: 'staff@pro-nara.com', name: 'พนักงาน', role: 'STAFF', is_active: 'TRUE' }
+  { email: 'admin@pro-nara.com', name: 'ผู้ดูแลระบบ', role: 'ADMIN', is_active: 'TRUE', password: 'admin123' },
+  { email: 'manager@pro-nara.com', name: 'ผู้จัดการ', role: 'MANAGER', is_active: 'TRUE', password: 'manager123' },
+  { email: 'staff@pro-nara.com', name: 'พนักงาน', role: 'STAFF', is_active: 'TRUE', password: 'staff123' }
 ];
 
 /**

@@ -202,11 +202,28 @@ function uid_() {
   return Utilities.getUuid();
 }
 
+/* ตัวแปรเก็บผู้ใช้ปัจจุบันของคำขอ REST (ตั้งโดย doPost และถูกอ่านใน me_)
+ * รูปแบบ: { email: string, role: string, name: string }
+ * การทำงานแบบ stateless — ตั้งค่าใน doPost แล้วคืนค่ากลับเป็น null หลัง dispatch */
+var CURRENT_SESSION = null;
+
 /**
- * อีเมลของผู้ใช้ที่เรียก Web App (หรือ 'anonymous' ถ้าไม่รู้จัก)
+ * ตั้งค่า session ของผู้ใช้ปัจจุบัน (เรียกจาก doPost ก่อน dispatch action)
+ * @param {Object|null} session { email, role, name } หรือ null เพื่อล้าง
+ */
+function setCurrentUser_(session) {
+  CURRENT_SESSION = session || null;
+}
+
+/**
+ * อีเมลของผู้ใช้ปัจจุบัน (จาก session ของคำขอ REST)
+ * fallback ไป Session.getActiveUser() สำหรับการรันแบบ editor/trigger
  * @returns {string}
  */
 function me_() {
+  if (CURRENT_SESSION && CURRENT_SESSION.email) {
+    return CURRENT_SESSION.email;
+  }
   var email = Session.getActiveUser().getEmail();
   return email && email !== '' ? email : 'anonymous';
 }
