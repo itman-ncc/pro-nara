@@ -1,0 +1,27 @@
+<!-- M_Cancel.html - modal ยกเลิก (ใช้ SweetAlert2) -->
+<script>
+// modal ยกเลิก ใช้ Swal.fire ร่วมกับ cancelOrderPrompt ใน P_Order.html
+// แสดงผลต่าง and นับตัวอักษรเหตุผลให้อัตโนมัติ
+function openCancelModal(options) {
+  var opts = options || {};
+  Swal.fire({
+    title: opts.title || 'ยืนยันการยกเลิก',
+    input: 'textarea',
+    inputLabel: opts.inputLabel || 'เหตุผลการยกเลิก (ขั้นต่ำ 10 ตัวอักษร)',
+    inputPlaceholder: 'ระบุเหตุผล...',
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยันยกเลิก',
+    cancelButtonText: 'ปิด',
+    confirmButtonColor: '#dc2626',
+    inputValidator: function (value) {
+      if (!value || value.trim().length < 10) {
+        return 'เหตุผลต้องยาวอย่างน้อย 10 ตัวอักษร';
+      }
+    }
+  }).then(function (result) {
+    if (result.isConfirmed && typeof opts.onConfirm === 'function') {
+      opts.onConfirm(result.value.trim());
+    }
+  });
+}
+</script>

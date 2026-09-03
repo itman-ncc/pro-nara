@@ -1,0 +1,236 @@
+<!-- Script.html - JS ฝั่ง client (SPA router) -->
+<script src="https://unpkg.com/sweetalert2@11"></script>
+<script>
+(function () {
+  'use strict';
+
+  var APP = {
+    routes: {
+      'dashboard': { title: 'แดชบอร์ด', render: renderDashboard },
+      'orders': { title: 'ใบสั่งจ้าง', render: renderOrders },
+      'order-form': { title: 'สร้างใบสั่งจ้าง', render: renderOrderForm },
+      'billing': { title: 'วางบิล', render: renderBilling },
+      'payment': { title: 'รับชำระเงิน', render: renderPayment },
+      'audit': { title: 'ตรวจสอบย้อนหลัง', render: renderAudit },
+      'settings': { title: 'ตั้งค่า', render: renderSettings },
+      'pending': function () { return '<div class="card"><h2>อยู่ระหว่างการพัฒนา</h2><p>หน้านี้กำลังอยู่ในขั้นตอนการพัฒนาใน Phase ถัดไป</p></div>'; }
+    },
+    current: 'dashboard',
+    data: {}
+  };
+
+  // ===== Router =====
+  function navigate(route) {
+    APP.current = route;
+    var navBtns = document.querySelectorAll('.nav button');
+    navBtns.forEach(function (b) { b.classList.remove('active'); });
+    var activeBtn = document.querySelector('.nav button[data-route="' + route + '"]');
+    if (activeBtn) activeBtn.classList.add('active');
+
+    var routeFn = APP.routes[route] || APP.routes.pending;
+    var el = document.getElementById('app');
+    el.innerHTML = '<div class="app-container"><div class="card"><p>โหลด...</p></div></div>';
+
+    // Async render
+    Promise.resolve(routeFn()).then(function (html) {
+      el.innerHTML = html;
+      el.scrollIntoView();
+    }).catch(function (err) {
+      el.innerHTML = '<div class="app-container"><div class="card"><h2>เกิดข้อผิดพลาด</h2><p>' + (err.message || err) + '</p></div></div>';
+    });
+  }
+
+  // ===== API helper =====
+  function callServer(fnName, params) {
+    return new Promise(function (resolve, reject) {
+      var payload = params || {};
+      // ถ้าเป็น array ให้ทำ copy
+      google.script.run
+        .withSuccessHandler(function (res) { resolve(res); })
+        .withFailureHandler(function (err) { reject(err); })
+        [fnName](payload);
+    });
+  }
+
+  function callServerArgs(fnName) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return new Promise(function (resolve, reject) {
+      google.script.run
+        .withSuccessHandler(function (res) { resolve(res); })
+        .withFailureHandler(function (err) { reject(err); })
+        [fnName].apply(null, args);
+    });
+  }
+
+  function handleResult(res, successMsg) {
+    if (res && res.ok) {
+      if (successMsg) toast(successMsg, 'success');
+      return res.data;
+    }
+    throw new Error((res && res.message) || 'เกิดข้อผิดพลาด');
+  }
+
+  // ===== Toast =====
+  function toast(msg, type) {
+    var el = document.createElement('div');
+    el.className = 'toast ' + (type || '');
+    el.textContent = msg;
+    document.body.appendChild(el);
+    requestAnimationFrame(function () { el.classList.add('show'); });
+    setTimeout(function () { el.classList.remove('show'); setTimeout(function () { el.remove(); }, 300); }, 2500);
+  }
+
+  // ===== Helpers =====
+  function fmtMoney(n) {
+    return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0);
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function badgeFor(status) {
+    var map = {
+      DRAFT: ['badge-draft', 'ร่าง'],
+      QUOTED: ['badge-quoted', 'เสนอราคา'],
+      CONFIRMED: ['badge-confirmed', 'ยืนยัน'],
+      IN_PRODUCTION: ['badge-production', 'กำลังผลิต'],
+      DELIVERED: ['badge-delivered', 'ส่งของแล้ว'],
+      BILLED: ['badge-billed', 'วางบิลแล้ว'],
+      PARTIAL_PAID: ['badge-partial', 'จ่ายบางส่วน'],
+      PAID: ['badge-paid', 'ชำระแล้ว'],
+      CANCELLED: ['badge-cancelled', 'ยกเลิก']
+    };
+    var m = map[status] || ['badge-draft', status];
+    return '<span class="badge ' + m[0] + '">' + m[1] + '</span>';
+  }
+
+  // ===== Header + Nav =====
+  function buildLayout() {
+    var container = document.getElementById('app');
+    container.innerHTML = [
+      '<header class="app-header">',
+      '  <div class="brand">🏭 ระบบวางบิลร้านไวนิล</div>',
+      '  <nav class="nav">',
+      '    <button data-route="dashboard">แดชบอร์ด</button>',
+      '    <button data-route="orders">ใบสั่งจ้าง</button>',
+      '    <button data-route="billing">วางบิล</button>',
+      '    <button data-route="payment">รับชำระ</button>',
+      '    <button data-route="audit">ตรวจสอบ</button>',
+      '    <button data-route="settings">ตั้งค่า</button>',
+      '  </nav>',
+      '</header>',
+      '<div id="page-content"></div>'
+    ].join('');
+    container.querySelectorAll('.nav button').forEach(function (b) {
+      b.addEventListener('click', function () { navigate(b.getAttribute('data-route')); });
+    });
+  }
+
+  // ===== Renderers =====
+  function renderDashboard() {
+    return callServerArgs('getDashboard').then(function (res) {
+      var d = res.data;
+      var awaited = document.createElement('div');
+      return [
+        '<div class="grid grid-4" style="margin-top:16px">',
+        '  <div class="card stat-card"><div class="stat-value">฿' + fmtMoney(d.month_sales) + '</div><div class="stat-label">ยอดขายเดือนนี้</div></div>',
+        '  <div class="card stat-card"><div class="stat-value" style="color:var(--warning)">฿' + fmtMoney(d.aging['0-30']) + '</div><div class="stat-label">ลูกหนี้ 0-30 วัน</div></div>',
+        '  <div class="card stat-card"><div class="stat-value" style="color:var(--warning)">฿' + fmtMoney(d.aging['31-60']) + '</div><div class="stat-label">ลูกหนี้ 31-60 วัน</div></div>',
+        '  <div class="card stat-card"><div class="stat-value" style="color:var(--danger)">฿' + fmtMoney(d.aging['60+']) + '</div><div class="stat-label">ลูกหนี้ 60+ วัน</div></div>',
+        '</div>',
+        '<div class="grid grid-2">',
+        '  <div class="card"><h2>งานค้างส่ง: <span style="color:var(--danger)">' + d.pending_deliveries + '</span></h2></div>',
+        '  <div class="card"><h2>วันนี้: ' + esc(d.today) + '</h2></div>',
+        '</div>',
+        '<div class="card">',
+        '  <h2>ใบสั่งจ้างล่าสุด</h2>',
+        '  <div class="table-wrap"><table class="data">',
+        '    <thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>วันที่</th><th>ยอดรวม</th><th>ยอดคงค้าง</th><th>สถานะ</th></tr></thead>',
+        '    <tbody>' + (d.recent_orders.map(function (o) {
+          return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td></tr>';
+        }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">ไม่มีข้อมูล<\/td></tr>') + '</tbody>',
+        '  </table></div>',
+        '</div>'
+      ].join('');
+    });
+  }
+
+  function renderOrders() {
+    return callServerArgs('listOrders', {}).then(function (res) {
+      var orders = res.data;
+      return [
+        '<div class="card"><h2>รายการใบสั่งจ้าง <button class="btn btn-primary" onclick="location.hash=\'#/order-form\'">+ สร้างใหม่</button></h2>',
+        '  <div class="table-wrap"><table class="data">',
+        '    <thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>วันที่</th><th>ยอดรวม</th><th>คงค้าง</th><th>สถานะ</th><th>การจัดการ</th></tr></thead>',
+        '    <tbody>' + (orders.map(function (o) {
+          return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td>' +
+            '<td><button class="btn btn-secondary" onclick="openOrderDetail(\'' + esc(o.id) + '\')">ดู</button> <button class="btn btn-danger" onclick="cancelOrderPrompt(\'' + esc(o.id) + '\')">ยกเลิก</button></td></tr>';
+        }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">ยังไม่มีใบสั่งจ้าง<\/td></tr>') + '</tbody>',
+        '  </table></div>',
+        '</div>'
+      ].join('');
+    });
+  }
+
+  function renderOrderForm() {
+    return callServerArgs('searchCustomers', '').then(function (res) {
+      var customers = res.data;
+      return [
+        '<div class="card"><h2>สร้างใบสั่งจ้าง</h2>',
+        '<div class="form-group"><label>เลือกลูกค้า (พิมพ์ค้นหา)</label>',
+        '  <div class="pos-relative"><input id="cust-search" placeholder="ค้นหาชื่อ / เบอร์โทร..." autocomplete="off">',
+        '  <ul id="cust-list" class="autocomplete-list" style="display:none"></ul></div>',
+        '  <input type="hidden" id="cust-id">',
+        '</div>',
+        '<div class="grid grid-2">',
+        '  <div class="form-group"><label>โหมดขาย</label><select id="sale-mode"><option value="RETAIL">ขายปลีก</option><option value="WHOLESALE">ขายส่ง</option></select></div>',
+        '  <div class="form-group"><label>กำหนดส่ง</label><input id="due-date" type="date"></div>',
+        '</div>',
+        '<h3 style="margin:16px 0 8px">รายการสินค้า</h3>',
+        '<div id="items-box"></div>',
+        '<button class="btn btn-secondary" onclick="addItemRow()">+ เพิ่มรายการ</button>',
+        '<div class="grid grid-3" style="margin-top:16px">',
+        '  <div class="form-group"><label>ส่วนลด (฿)</label><input id="discount" type="number" value="0" step="0.01"></div>',
+        '  <div class="form-group"><label>รูปแบบภาษี</label><select id="vat-mode"><option value="NONE">ไม่มีภาษี</option><option value="EXCLUDE">ภาษี +7% (บวกเพิ่ม)</option><option value="INCLUDE">ภาษีรวม</option></select></div>',
+        '  <div class="form-group"><label>ภาษีหัก ณ ที่จ่าย (฿)</label><input id="wht" type="number" value="0" step="0.01"></div>',
+        '</div>',
+        '<div class="card" style="background:var(--bg)"><strong>ยอดรวม (Grand Total):</strong> ฿<span id="grand-total" style="font-weight:700;color:var(--primary)">0.00</span></div>',
+        '<div style="margin-top:16px;display:flex;gap:8px"><button class="btn btn-primary" onclick="saveOrder()">บันทึกใบสั่งจ้าง</button><button class="btn btn-secondary" onclick="location.hash=\'#/orders\'">ยกเลิก</button></div>',
+        '</div>'
+      ].join('') + '<script>initOrderForm(' + JSON.stringify(customers) + ')<\/script>';
+    });
+  }
+
+  function renderBilling() {
+    return '<div class="card"><h2>วางบิล</h2><p>หน้านี้กำลังอยู่ในขั้นตอนการพัฒนาใน Phase ถัดไป</p></div>';
+  }
+
+  function renderPayment() {
+    return '<div class="card"><h2>รับชำระเงิน</h2><p>หน้านี้กำลังอยู่ในขั้นตอนการพัฒนาใน Phase ถัดไป</p></div>';
+  }
+
+  function renderAudit() {
+    return '<div class="card"><h2>ตรวจสอบย้อนหลัง</h2><p>หน้านี้กำลังอยู่ในขั้นตอนการพัฒนาใน Phase ถัดไป</p></div>';
+  }
+
+  function renderSettings() {
+    return '<div class="card"><h2>ตั้งค่า</h2><p>หน้านี้กำลังอยู่ในขั้นตอนการพัฒนาใน Phase ถัดไป</p></div>';
+  }
+
+  // ===== Expose global =====
+  window.navigate = navigate;
+  window.callServer = callServer;
+  window.callServerArgs = callServerArgs;
+  window.handleResult = handleResult;
+  window.toast = toast;
+  window.fmtMoney = fmtMoney;
+  window.esc = esc;
+  window.APP = APP;
+
+  // init
+  buildLayout();
+  navigate('dashboard');
+
+})();
+</script>

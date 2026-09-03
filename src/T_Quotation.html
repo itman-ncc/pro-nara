@@ -1,0 +1,37 @@
+<!-- T_Quotation.html - เทมเพลตพิมพ์ใบเสนอราคา A4 -->
+<style>
+  @media print {
+    @page { size: A4; margin: 12mm; }
+    .no-print { display: none !important; }
+    body { font-family: 'Sarabun', sans-serif; }
+  }
+  .doc-page { max-width: 210mm; margin: 0 auto; padding: 20px; background:#fff; }
+  .doc-header { display:flex; justify-content:space-between; border-bottom:2px solid #000; padding-bottom:12px; margin-bottom:16px; }
+  .doc-title { font-size:26px; font-weight:700; }
+  .doc-no { font-size:16px; text-align:right; }
+  table.ditems { width:100%; border-collapse:collapse; font-size:14px; }
+  table.ditems th, table.ditems td { border:1px solid #000; padding:6px 8px; text-align:left; }
+  table.ditems th { background:#f1f5f9; }
+  .watermark { position:fixed; top:40%; left:50%; transform:translate(-50%,-50%) rotate(-30deg); font-size:80px; color:rgba(220,38,38,.15); font-weight:800; z-index:99; pointer-events:none; }
+  .btn-print { margin: 10px 0; }
+</style>
+<div id="quotation-doc" class="doc-page"></div>
+<button class="btn btn-primary btn-print no-print" onclick="window.print()">🖨️ พิมพ์ใบเสนอราคา</button>
+<script>
+function renderQuotation(doc) {
+  var snap = doc.snapshot || {};
+  var order = snap.order || {};
+  var items = snap.items || [];
+  var watermark = doc.status === 'VOID' ? '<div class="watermark">ยกเลิก</div>' : '';
+  var rows = items.map(function (it) {
+    return '<tr><td>' + (it.line_no||'') + '</td><td>' + esc(it.description) + '</td><td>' + esc(it.width_m) + ' x ' + esc(it.height_m) + ' ม.</td><td>' + esc(it.qty) + '</td><td>' + esc(it.area_sqm) + '</td><td>' + fmtMoney(it.unit_price) + '</td><td>' + fmtMoney(it.line_total) + '</td></tr>';
+  }).join('');
+  document.getElementById('quotation-doc').innerHTML = watermark + [
+    '<div class="doc-header"><div><div class="doc-title">ใบเสนอราคา</div><div>ร้านไวนิล</div></div><div class="doc-no"><strong>' + esc(doc.doc_no) + '</strong><br>' + esc(doc.issue_date) + '</div></div>',
+    '<p><strong>ลูกค้า:</strong> ' + esc(order.customer_name) + '</p>',
+    '<table class="ditems"><thead><tr><th>#</th><th>รายการ</th><th>ขนาด</th><th>จำนวน</th><th>ตร.ม.</th><th>ราคา/ตร.ม.</th><th>รวม</th></tr></thead><tbody>' + rows + '</tbody></table>',
+    '<div style="text-align:right;margin-top:12px"><p>รวม: ฿' + fmtMoney(order.subtotal) + '</p><p>ภาษี: ฿' + fmtMoney(order.vat_amount) + '</p><p><strong>สุทธิ: ฿' + fmtMoney(order.grand_total) + '</strong></p></div>',
+    '<p style="margin-top:24px;font-style:italic">ขอบคุณที่ใช้บริการ</p>'
+  ].join('');
+}
+</script>
