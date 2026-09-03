@@ -209,16 +209,60 @@ function roleAtLeast(role) {
   return order[APP.user.role] >= (order[role] || 1);
 }
 
+/* ================== LOADING (Sweet Alert) ================== */
+var LOADING = {
+  count: 0,           // จำนวน request ที่ยังค้างอยู่
+  shown: false,       // แสดง Sweet Alert loading แล้วหรือยัง
+  timer: null,        // ดีเลย์กันกระพริบสำหรับ request ที่จบไว
+  label: 'กำลังโหลดข้อมูล...'
+};
+
+// ตั้งค่าข้อความ loading ระหว่างการโหลด (สำหรับหน้าจอที่โหลดหลายรอบ)
+function loadingMsg() {
+  return LOADING.label;
+}
+
+function pushLoading() {
+  LOADING.count++;
+  if (LOADING.shown) return;
+  if (LOADING.timer) clearTimeout(LOADING.timer);
+  LOADING.timer = setTimeout(showLoading, 120);
+}
+
+function showLoading() {
+  if (LOADING.count <= 0 || LOADING.shown) return;
+  LOADING.shown = true;
+  Swal.fire({
+    title: loadingMsg(),
+    text: 'กรุณารอสักครู่',
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    didOpen: function () { Swal.showLoading(); },
+    didDestroy: function () { LOADING.shown = false; }
+  });
+}
+
+function popLoading() {
+  LOADING.count = Math.max(0, LOADING.count - 1);
+  if (LOADING.count > 0) return;
+  if (LOADING.timer) clearTimeout(LOADING.timer);
+  if (LOADING.shown) Swal.close();
+}
+
 /* ================== API HELPER ================== */
 async function api(action, payload) {
+  pushLoading();
   try {
     var r = await fetch(API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: action, payload: payload || {}, session: session() })
     });
-    return await r.json();
+    var data = await r.json();
+    popLoading();
+    return data;
   } catch (err) {
+    popLoading();
     return { ok: false, data: null, message: 'เชื่อมต่อเซิร์ฟเวอร์ล้มเหลว: ' + err.message };
   }
 }
