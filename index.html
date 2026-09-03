@@ -956,8 +956,6 @@ async function updateOrder() {
 function getItems() {
   return ORDER_ITEMS;
 }
-  return ORDER_ITEMS;
-}
 
 function recalc() {
   var sub = 0;
@@ -1399,8 +1397,10 @@ async function editCustomer(id) {
   }).then(function (result) {
     if (result.isConfirmed) {
       toast('แก้ไขลูกค้าสำเร็จ', 'success');
-      APP.customers = (await api('searchCustomers', { keyword: '' })).data || [];
-      navigate('customers');
+      api('searchCustomers', { keyword: '' }).then(function (r) {
+        APP.customers = (r && r.ok && r.data) || [];
+        navigate('customers');
+      });
     }
   });
 }
