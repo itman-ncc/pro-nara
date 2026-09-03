@@ -231,6 +231,26 @@ function esc(s) {
 function fmtMoney(n) {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n) || 0);
 }
+var TH_MONTHS_ABBR = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+function fmtDateTh(val) {
+  if (!val) return '';
+  var s = String(val);
+  var d, time = '00:00:00';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    d = new Date(s + 'T00:00:00');
+  } else {
+    d = new Date(s);
+    if (isNaN(d.getTime())) return s;
+    time = (s.length >= 19)
+      ? s.slice(11, 19)
+      : [String(d.getHours()), String(d.getMinutes()), String(d.getSeconds())].map(function (n) { return n.length === 1 ? '0' + n : n; }).join(':');
+  }
+  if (isNaN(d.getTime())) return s;
+  var dd = String(d.getDate()).length === 1 ? '0' + d.getDate() : String(d.getDate());
+  var mon = TH_MONTHS_ABBR[d.getMonth()];
+  var by = d.getFullYear() + 543;
+  return dd + ' ' + mon + ' ' + by + ' ' + time;
+}
 function toast(msg, type) {
   var icon = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
   Swal.fire({ icon: icon, title: msg, toast: false, timer: 2200, showConfirmButton: false, timerProgressBar: true });
@@ -538,12 +558,12 @@ ROUTES.dashboard = function () {
       '</div>' +
       '<div class="grid grid-2">' +
         '<div class="card"><h2>งานค้างส่ง: <span style="color:var(--danger)">' + d.pending_deliveries + '</span></h2></div>' +
-        '<div class="card"><h2>วันนี้: ' + esc(d.today) + '</h2></div>' +
+        '<div class="card"><h2>วันนี้: ' + fmtDateTh(d.today) + '</h2></div>' +
       '</div>' +
       '<div class="card"><h2>ใบสั่งจ้างล่าสุด</h2>' +
         '<div class="table-wrap"><table class="data"><thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>วันที่</th><th>ยอดรวม</th><th>คงค้าง</th><th>สถานะ</th></tr></thead><tbody>' +
         (d.recent_orders.map(function (o) {
-          return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td></tr>';
+          return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + fmtDateTh(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td></tr>';
         }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">ไม่มีข้อมูล</td></tr>') +
         '</tbody></table></div></div>'
     );
@@ -563,11 +583,9 @@ ROUTES.orders = function () {
         acts += '<button class="btn btn-danger btn-sm" onclick="cancelOrderPrompt(\'' + esc(o.id) + '\')">ยกเลิก</button>';
       } else if (o.status === 'PAID') {
         acts += '<button class="btn btn-success btn-sm" onclick="openBillingOrder(\'' + esc(o.id) + '\')">ใบเสร็จ</button> ';
-      } else if (o.status === 'PAID') {
-        acts += '<button class="btn btn-success btn-sm" onclick="openBillingOrder(\'' + esc(o.id) + '\')">ใบเสร็จ</button> ';
       }
       return '<tr>' +
-        '<td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td>' +
+        '<td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + fmtDateTh(o.order_date) + '</td>' +
         '<td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td>' +
         '<td style="white-space:normal">' + acts + '</td></tr>';
     }).join('');
@@ -612,9 +630,11 @@ async function filterOrders() {
       }
       acts += '<button class="btn btn-primary btn-sm" onclick="openBillingOrder(\'' + esc(o.id) + '\')">ออกเอกสาร</button> ';
       acts += '<button class="btn btn-danger btn-sm" onclick="cancelOrderPrompt(\'' + esc(o.id) + '\')">ยกเลิก</button>';
+    } else if (o.status === 'PAID') {
+      acts += '<button class="btn btn-success btn-sm" onclick="openBillingOrder(\'' + esc(o.id) + '\')">ใบเสร็จ</button> ';
     }
     return '<tr>' +
-      '<td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td>' +
+      '<td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + fmtDateTh(o.order_date) + '</td>' +
       '<td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td>' +
       '<td style="white-space:normal">' + acts + '</td></tr>';
   }).join('');
@@ -1028,7 +1048,7 @@ async function openOrderDetail(orderId) {
     title: 'ใบสั่งจ้าง ' + order.doc_no,
     html: '<div style="text-align:left">' +
       '<p><strong>ลูกค้า:</strong> ' + esc(order.customer_name) + '</p>' +
-      '<p><strong>วันที่:</strong> ' + esc(order.order_date) + ' &nbsp; <strong>สถานะ:</strong> ' + badgeFor(order.status) + '</p>' +
+      '<p><strong>วันที่:</strong> ' + fmtDateTh(order.order_date) + ' &nbsp; <strong>สถานะ:</strong> ' + badgeFor(order.status) + '</p>' +
       '<div class="table-wrap"><table class="data" style="margin-top:10px;width:100%"><thead><tr><th>รายการ</th><th>ขนาด</th><th>จำนวน</th><th>ตร.ม.</th><th>ราคา</th><th>รวม</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div style="margin-top:12px;text-align:right"><p>รวม: ฿' + fmtMoney(order.subtotal) + '</p><p>ภาษี: ฿' + fmtMoney(order.vat_amount) + '</p><p>หัก ณ ที่จ่าย: ฿' + fmtMoney(order.wht_amount) + '</p><p><strong>สุทธิ: ฿' + fmtMoney(order.grand_total) + '</strong></p></div>' +
     '</div>',
@@ -1066,7 +1086,7 @@ ROUTES.billing = function () {
     return ['DELIVERED','CONFIRMED','IN_PRODUCTION','BILLED','PARTIAL_PAID','QUOTED'].indexOf(o.status) >= 0 || o.status === 'PAID';
     });
     var rows = eligible.map(function (o) {
-      return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td>' +
+      return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + fmtDateTh(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td>' +
         '<td><button class="btn btn-secondary btn-sm" onclick="openBillingOrder(\'' + esc(o.id) + '\')">จัดการเอกสาร</button></td></tr>';
     }).join('');
     showPage(
@@ -1094,7 +1114,7 @@ async function filterBilling() {
     return ['DELIVERED','CONFIRMED','IN_PRODUCTION','BILLED','PARTIAL_PAID','QUOTED'].indexOf(o.status) >= 0 || o.status === 'PAID';
   });
   var rows = eligible.map(function (o) {
-    return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td>' +
+    return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + fmtDateTh(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td>' +
       '<td><button class="btn btn-secondary btn-sm" onclick="openBillingOrder(\'' + esc(o.id) + '\')">จัดการเอกสาร</button></td></tr>';
   }).join('');
   var tbody = document.querySelector('#page table tbody');
@@ -1127,7 +1147,7 @@ async function openBillingOrder(orderId) {
     docs.map(function (d) {
       var printBtn = d.status === 'ACTIVE' ? '<button class="btn btn-secondary btn-sm" onclick="printDoc(\'' + esc(d.id) + '\')">🖨️ พิมพ์</button>' : '<span class="badge badge-cancelled">' + esc(d.status) + '</span>';
       var cancelBtn = d.status === 'ACTIVE' ? '<button class="btn btn-danger btn-sm" onclick="cancelDocPrompt(\'' + esc(d.id) + '\',\'' + esc(d.doc_no) + '\')">ยกเลิก</button>' : '';
-      return '<tr><td>' + esc(d.doc_no) + '</td><td>' + docTypeName(d.doc_type) + '</td><td>' + esc(d.issue_date) + '</td><td>' + printBtn + '</td><td>' + cancelBtn + '</td></tr>';
+      return '<tr><td>' + esc(d.doc_no) + '</td><td>' + docTypeName(d.doc_type) + '</td><td>' + fmtDateTh(d.issue_date) + '</td><td>' + printBtn + '</td><td>' + cancelBtn + '</td></tr>';
     }).join('') + '</tbody></table></div>' : '';
 
   Swal.fire({
@@ -1225,7 +1245,7 @@ function renderPrint(doc) {
     (APP.settings.shopAddress ? '<div style="font-size:12px">' + esc(APP.settings.shopAddress) + '</div>' : '') +
     (APP.settings.shopPhone ? '<div style="font-size:12px">โทร: ' + esc(APP.settings.shopPhone) + '</div>' : '') +
     (APP.settings.shopTaxId ? '<div style="font-size:12px">เลขผู้เสียภาษี: ' + esc(APP.settings.shopTaxId) + '</div>' : '') +
-    '</div><div style="text-align:right"><strong>' + esc(doc.doc_no) + '</strong><br>' + esc(doc.issue_date || '') + '</div></div>' +
+    '</div><div style="text-align:right"><strong>' + esc(doc.doc_no) + '</strong><br>' + fmtDateTh(doc.issue_date) + '</div></div>' +
     '<p><strong>ลูกค้า:</strong> ' + esc(order.customer_name || '') + '</p>' +
     '<table><thead><tr><th>#</th><th>รายการ</th><th>จำนวน</th><th>พื้นที่</th><th>ราคา</th><th>รวม</th></tr></thead><tbody>' + rows + '</tbody></table>' +
     '<div class="tot">' +
@@ -1234,7 +1254,7 @@ function renderPrint(doc) {
       '<p>หัก ณ ที่จ่าย: ฿' + fmtMoney(order.wht_amount) + '</p>' +
       '<p><strong>สุทธิ: ฿' + fmtMoney(doc.total_amount != null ? doc.total_amount : order.grand_total) + '</strong></p>' +
     '</div>' +
-    '<p style="margin-top:12px"><strong>กำหนดชำระ:</strong> ' + esc(doc.due_date || order.due_date || '') + '</p>' +
+    '<p style="margin-top:12px"><strong>กำหนดชำระ:</strong> ' + fmtDateTh(doc.due_date || order.due_date) + '</p>' +
     (APP.settings.signatoryName ? '<div style="margin-top:40px;text-align:right;padding-right:40px"><div style="border-top:1px solid #000;width:200px;display:inline-block;padding-top:4px">' + esc(APP.settings.signatoryName) + '</div></div>' : '') +
     '</body></html>';
 
@@ -1265,7 +1285,7 @@ async function loadDueOrders() {
   var orders = (res && res.data) || [];
   if (!orders.length) { box.innerHTML = '<p class="muted">ไม่มียอดค้างชำระ</p>'; form.innerHTML = ''; return; }
   var rows = orders.map(function (o) {
-    return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td><button class="btn btn-success btn-sm" onclick="selectOrderToPay(\'' + esc(o.id) + '\')">รับชำระ</button></td></tr>';
+    return '<tr><td>' + esc(o.doc_no) + '</td><td>' + fmtDateTh(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td><button class="btn btn-success btn-sm" onclick="selectOrderToPay(\'' + esc(o.id) + '\')">รับชำระ</button></td></tr>';
   }).join('');
   box.innerHTML = '<div class="table-wrap"><table class="data"><thead><tr><th>เลขที่</th><th>วันที่</th><th>ยอดรวม</th><th>คงค้าง</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   form.innerHTML = '';
@@ -1501,7 +1521,7 @@ async function loadAuditLogs() {
   var rows = logs.map(function (l) {
     var fields = (l.changed_fields_arr && l.changed_fields_arr.length) ? l.changed_fields_arr.join(', ') : '';
     return '<tr>' +
-      '<td>' + esc(String(l.ts || '').replace('T',' ').slice(0,19)) + '</td>' +
+      '<td>' + fmtDateTh(l.ts) + '</td>' +
       '<td><span class="badge ' + auditBadge(l.action) + '">' + esc(auditLabel(l.action)) + '</span></td>' +
       '<td>' + esc(l.entity || '') + '</td>' +
       '<td>' + esc(l.doc_no || '') + '</td>' +
