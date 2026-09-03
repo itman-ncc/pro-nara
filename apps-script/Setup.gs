@@ -22,7 +22,7 @@ var SETUP_SHEETS = {
     'revision_no', 'subtotal', 'discount_amt', 'vat_mode', 'vat_rate', 'vat_amount', 'wht_amount', 'grand_total',
     'paid_total', 'balance', 'locked', 'note', 'cancel_reason', 'ref_cancelled_order', 'created_by', 'created_at',
     'updated_by', 'updated_at'],
-  'OrderItems': ['id', 'order_id', 'line_no', 'product_id', 'description', 'width_m', 'height_m', 'qty',
+  'OrderItems': ['id', 'order_id', 'line_no', 'product_id', 'description', 'category', 'width_m', 'height_m', 'qty',
     'area_sqm', 'price_mode', 'unit_price', 'extra_charge', 'extra_note', 'line_total'],
   'Documents': ['id', 'doc_type', 'doc_no', 'order_id', 'payment_id', 'issue_date', 'due_date', 'snapshot_json',
     'total_amount', 'status', 'void_reason', 'void_by', 'void_at', 'print_count', 'issued_by', 'created_at'],

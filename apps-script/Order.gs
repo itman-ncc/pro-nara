@@ -48,6 +48,21 @@ function calcOrderTotals_(items, orderMeta) {
 }
 
 /**
+ * ตรวจ/เพิ่มคอลัมน์ category ในชีต OrderItems (รองรับ DB เดิมที่ยังไม่มี)
+ * เขียนตาม header จริง ไม่กระทบตำแหน่งคอลัมน์เดิม
+ */
+function ensureOrderItemsSchema_() {
+  var sh = sh_(SH.ORDER_ITEMS);
+  if (!sh) return false;
+  // ล้าง cache header ของชีตนี้เสมอ (กันเขียนตาม header เก่าเวลาที่คอลัมน์ถูกเพิ่มไปก่อนหน้านี้)
+  try { CacheService.getScriptCache().remove('hdr_' + SH.ORDER_ITEMS); } catch (e) {}
+  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  if (headers.indexOf('category') >= 0) return true;
+  sh.getRange(1, sh.getLastColumn() + 1).setValue('category');
+  return true;
+}
+
+/**
  * สร้างใบสั่งจ้างพร้อมรายการ
  * @param {Object} payload { customer_id, sale_mode, items:[...], ... }
  */
@@ -56,6 +71,7 @@ function createOrder(payload) {
   var lock = LockService.getScriptLock();
   lock.waitLock(LOCK_TIMEOUT_MS);
   try {
+    ensureOrderItemsSchema_();
     payload = payload || {};
     if (!payload.customer_id) throw new Error('กรุณาเลือกลูกค้า');
     var customer = repoFindById_('Customers', payload.customer_id, true);
@@ -150,6 +166,7 @@ function prepareOrderItem_(item, saleMode, lineNo) {
   return {
     product_id: item.product_id || '',
     line_no: lineNo,
+    category: item.category || '',
     description: item.description || (prod ? prod.name : ''),
     width_m: item.width_m || 0,
     height_m: item.height_m || 0,
@@ -171,6 +188,7 @@ function updateOrder(orderId, payload) {
   var lock = LockService.getScriptLock();
   lock.waitLock(LOCK_TIMEOUT_MS);
   try {
+    ensureOrderItemsSchema_();
     var before = repoFindById_('Orders', orderId, true);
     if (!before) throw new Error('ไม่พบใบสั่งจ้าง');
 

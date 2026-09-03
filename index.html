@@ -168,7 +168,7 @@
 
   .item-header {
     display: grid;
-    grid-template-columns: 2fr 2fr 1fr 1fr 1fr 1fr 1fr auto;
+    grid-template-columns: 1.5fr 2fr 2fr 1fr 1fr 1fr 1fr 1fr auto;
     gap: 8px;
     margin: 6px 0 6px 0;
     padding: 0 2px;
@@ -176,7 +176,7 @@
     font-weight: 600;
     color: var(--text-muted);
   }
-  .item-header span:nth-child(8) { width: 40px; }
+  .item-header span:nth-child(9) { width: 40px; }
 
 
   /* Print template (A4) */
@@ -480,7 +480,7 @@ ROUTES['order-form'] = function () {
     '</div>' +
     '<h3>รายการสินค้า</h3>' +
     '<div class="item-header">' +
-      '<span>สินค้า</span><span>รายละเอียด</span><span>กว้าง (ม.)</span><span>สูง (ม.)</span><span>จำนวน</span><span>ราคา/ตร.ม.</span><span>เพิ่มเติม</span><span></span>' +
+      '<span>หมวดสินค้า</span><span>สินค้า</span><span>รายละเอียด</span><span>กว้าง (ม.)</span><span>สูง (ม.)</span><span>จำนวน</span><span>ราคา/ตร.ม.</span><span>เพิ่มเติม</span><span></span>' +
     '</div>' +
     '<div id="items-box"></div>' +
     '<button class="btn btn-secondary" onclick="addItemRow()">+ เพิ่มรายการ</button>' +
@@ -537,8 +537,9 @@ function addItemRow() {
   if (!box) return;
   var row = document.createElement('div');
   row.className = 'item-row';
-  row.style.cssText = 'display:grid;grid-template-columns:2fr 2fr 1fr 1fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center';
+  row.style.cssText = 'display:grid;grid-template-columns:1.5fr 2fr 2fr 1fr 1fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center';
   row.innerHTML =
+    '<input placeholder="หมวดสินค้า" class="item-cat">' +
     '<select class="item-prod">' + productOptions() + '</select>' +
     '<input placeholder="รายละเอียด" class="item-desc">' +
     '<input type="number" placeholder="กว้าง (ม.)" class="item-w" value="1">' +
@@ -578,6 +579,7 @@ function getItems() {
   document.querySelectorAll('#items-box .item-row').forEach(function (row) {
     items.push({
       product_id: row.querySelector('.item-prod').value || null,
+      category: row.querySelector('.item-cat').value,
       description: row.querySelector('.item-desc').value,
       width_m: row.querySelector('.item-w').value,
       height_m: row.querySelector('.item-h').value,
@@ -631,14 +633,14 @@ async function openOrderDetail(orderId) {
   var order = res.data.order;
   var items = res.data.items;
   var rows = items.map(function (it) {
-    return '<tr><td>' + esc(it.description) + '</td><td>' + esc(it.width_m) + 'x' + esc(it.height_m) + '</td><td>' + esc(it.qty) + '</td><td>' + esc(it.area_sqm) + '</td><td>' + fmtMoney(it.unit_price) + '</td><td>' + fmtMoney(it.line_total) + '</td></tr>';
+    return '<tr><td>' + esc(it.description) + '</td><td>' + esc(it.category || '') + '</td><td>' + esc(it.width_m) + 'x' + esc(it.height_m) + '</td><td>' + esc(it.qty) + '</td><td>' + esc(it.area_sqm) + '</td><td>' + fmtMoney(it.unit_price) + '</td><td>' + fmtMoney(it.line_total) + '</td></tr>';
   }).join('');
   Swal.fire({
     title: 'ใบสั่งจ้าง ' + order.doc_no,
     html: '<div style="text-align:left">' +
       '<p><strong>ลูกค้า:</strong> ' + esc(order.customer_name) + '</p>' +
       '<p><strong>วันที่:</strong> ' + esc(order.order_date) + ' &nbsp; <strong>สถานะ:</strong> ' + badgeFor(order.status) + '</p>' +
-      '<div class="table-wrap"><table class="data" style="margin-top:10px;width:100%"><thead><tr><th>รายการ</th><th>ขนาด</th><th>จำนวน</th><th>ตร.ม.</th><th>ราคา</th><th>รวม</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="table-wrap"><table class="data" style="margin-top:10px;width:100%"><thead><tr><th>รายการ</th><th>หมวด</th><th>ขนาด</th><th>จำนวน</th><th>ตร.ม.</th><th>ราคา</th><th>รวม</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div style="margin-top:12px;text-align:right"><p>รวม: ฿' + fmtMoney(order.subtotal) + '</p><p>ภาษี: ฿' + fmtMoney(order.vat_amount) + '</p><p>หัก ณ ที่จ่าย: ฿' + fmtMoney(order.wht_amount) + '</p><p><strong>สุทธิ: ฿' + fmtMoney(order.grand_total) + '</strong></p></div>' +
     '</div>',
     width: 720,
@@ -787,7 +789,7 @@ function renderPrint(doc) {
   var typeName = docTypeName(doc.doc_type);
   var wm = doc.status === 'VOID' ? '<div class="wm">ยกเลิก</div>' : '';
   var rows = items.map(function (it) {
-    return '<tr><td>' + esc(it.line_no || '') + '</td><td>' + esc(it.description) + '</td><td>' + esc(it.qty) + '</td><td>' + esc(it.area_sqm) + ' ตร.ม.</td><td>' + fmtMoney(it.unit_price) + '</td><td>' + fmtMoney(it.line_total) + '</td></tr>';
+    return '<tr><td>' + esc(it.line_no || '') + '</td><td>' + esc(it.description) + '</td><td>' + esc(it.category || '') + '</td><td>' + esc(it.qty) + '</td><td>' + esc(it.area_sqm) + ' ตร.ม.</td><td>' + fmtMoney(it.unit_price) + '</td><td>' + fmtMoney(it.line_total) + '</td></tr>';
   }).join('');
 
   var html = '<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>' + typeName + '</title>' +
@@ -809,7 +811,7 @@ function renderPrint(doc) {
     '<button class="btnp" onclick="window.print()">🖨️ พิมพ์เอกสาร</button>' + wm +
     '<div class="hdr"><div><div class="title">' + typeName + '</div><div>ร้านไวนิล</div></div><div style="text-align:right"><strong>' + esc(doc.doc_no) + '</strong><br>' + esc(doc.issue_date || '') + '</div></div>' +
     '<p><strong>ลูกค้า:</strong> ' + esc(order.customer_name || '') + '</p>' +
-    '<table><thead><tr><th>#</th><th>รายการ</th><th>จำนวน</th><th>พื้นที่</th><th>ราคา</th><th>รวม</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+    '<table><thead><tr><th>#</th><th>รายการ</th><th>หมวด</th><th>จำนวน</th><th>พื้นที่</th><th>ราคา</th><th>รวม</th></tr></thead><tbody>' + rows + '</tbody></table>' +
     '<div class="tot">' +
       '<p>รวม: ฿' + fmtMoney(order.subtotal) + '</p>' +
       '<p>ภาษี: ฿' + fmtMoney(order.vat_amount) + '</p>' +
