@@ -1329,6 +1329,18 @@ ROUTES.customers = function () {
     }).join('');
     showPage(
       '<div class="card"><h2>จัดการลูกค้า</h2>' +
+      '<h3>สร้างลูกค้าใหม่</h3>' +
+      '<div class="grid grid-2">' +
+        '<div class="form-group"><label>ชื่อลูกค้า *</label><input id="nc-name"></div>' +
+        '<div class="form-group"><label>ประเภท</label><select id="nc-type"><option value="RETAIL">ขายปลีก</option><option value="WHOLESALE">ขายส่ง</option></select></div>' +
+        '<div class="form-group"><label>เบอร์โทร</label><input id="nc-phone"></div>' +
+        '<div class="form-group"><label>เลขผู้เสียภาษี</label><input id="nc-tax"></div>' +
+        '<div class="form-group"><label>เครดิต (วัน)</label><input id="nc-credit" type="number" value="0"></div>' +
+        '<div class="form-group"><label>ที่อยู่</label><input id="nc-addr"></div>' +
+      '</div>' +
+      '<button class="btn btn-primary" onclick="saveNewCustomer()">บันทึกลูกค้า</button>' +
+      '</div>' +
+      '<div class="card"><h3>รายชื่อลูกค้า</h3>' +
       '<div class="filter-bar">' +
         '<div class="form-group" style="flex:1;min-width:200px"><label>ค้นหา</label><input id="cust-kw" placeholder="ชื่อ / เบอร์ / รหัส / เลขผู้เสียภาษี"></div>' +
         '<div class="form-group"><button class="btn btn-primary" onclick="filterCustomers()">ค้นหา</button></div>' +
@@ -1563,17 +1575,6 @@ ROUTES.settings = function () {
       shopForm +
       adminExtra +
       systemSettings +
-      '<div class="card"><h3>สร้างลูกค้าใหม่</h3>' +
-      '<div class="grid grid-2">' +
-        '<div class="form-group"><label>ชื่อลูกค้า *</label><input id="nc-name"></div>' +
-        '<div class="form-group"><label>ประเภท</label><select id="nc-type"><option value="RETAIL">ขายปลีก</option><option value="WHOLESALE">ขายส่ง</option></select></div>' +
-        '<div class="form-group"><label>เบอร์โทร</label><input id="nc-phone"></div>' +
-        '<div class="form-group"><label>เลขผู้เสียภาษี</label><input id="nc-tax"></div>' +
-        '<div class="form-group"><label>เครดิต (วัน)</label><input id="nc-credit" type="number" value="0"></div>' +
-        '<div class="form-group"><label>ที่อยู่</label><input id="nc-addr"></div>' +
-      '</div>' +
-      '<button class="btn btn-primary" onclick="saveNewCustomer()">บันทึกลูกค้า</button>' +
-      '</div>' +
       '<div class="card"><h3>อื่นๆ</h3>' +
       '<button class="btn btn-secondary" onclick="manualBackup()">💰 สำรองข้อมูลตอนนี้ (Backup)</button> ' +
       (roleAtLeast('ADMIN') ? '<button class="btn btn-secondary" onclick="setupSystem()">⚙️ รัน Setup (สร้างชีต)</button> ' : '') +
@@ -1631,7 +1632,7 @@ async function saveNewCustomer() {
   if (!res || !res.ok) { toast((res && res.message) || 'สร้างลูกค้าไม่สำเร็จ', 'error'); return; }
   toast('สร้างลูกค้า ' + res.data.code + ' สำเร็จ', 'success');
   APP.customers = (await mustApi('searchCustomers', { key: '' })) || [];
-  navigate('settings');
+  navigate('customers');
 }
 
 async function saveUserFromForm() {
