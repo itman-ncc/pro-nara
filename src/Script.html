@@ -203,19 +203,82 @@
   }
 
   function renderBilling() {
-    return '<div class="card"><h2>วางบิล</h2><p>หน้านี้กำลังอยู่ในขั้นตอนการพัฒนาใน Phase ถัดไป</p></div>';
+    // รายการใบสั่งจ้างที่พร้อมวางบิล / ออกเอกสาร
+    return callServerArgs('listOrders', {}).then(function (res) {
+      var orders = res.data.filter(function (o) {
+        return ['DELIVERED', 'CONFIRMED', 'IN_PRODUCTION', 'BILLED', 'PARTIAL_PAID'].indexOf(o.status) >= 0;
+      });
+      var rows = orders.map(function (o) {
+        var btns = '<button class="btn btn-secondary btn-sm" onclick="openBillingOrder(\'' + esc(o.id) + '\')">จัดการเอกสาร</button>';
+        return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td><td>' + btns + '</td></tr>';
+      }).join('');
+      return [
+        '<div class="card"><h2>วางบิล / ออกเอกสาร</h2>',
+        '<p style="margin-bottom:12px;color:var(--text-muted)">เลือกรายการเพื่อออกใบส่งของ (DO) ใบวางบิล (BN) ใบเสร็จ (RC) / ใบกำกับภาษี และพิมพ์เอกสาร</p>',
+        '<div class="table-wrap"><table class="data">',
+        '  <thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>วันที่</th><th>ยอดรวม</th><th>คงค้าง</th><th>สถานะ</th><th>จัดการ</th></tr></thead>',
+        '  <tbody>' + (rows || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">ยังไม่มีรายการที่พร้อมวางบิล</td></tr>') + '</tbody>',
+        '</table></div></div>'
+      ].join('');
+    });
   }
 
   function renderPayment() {
-    return '<div class="card"><h2>รับชำระเงิน</h2><p>หน้านี้กำลังอยู่ในขั้นตอนการพัฒนาใน Phase ถัดไป</p></div>';
+    return callServerArgs('searchCustomers', '').then(function (res) {
+      var customers = res.data;
+      return [
+        '<div class="card"><h2>รับชำระเงิน</h2>',
+        '<div class="form-group"><label>เลือกลูกค้า</label><select id="pay-cust" onchange="loadDueOrders()">',
+        '  <option value="">-- เลือกลูกค้า --</option>' + customers.map(function (c) { return '<option value="' + c.id + '">' + esc(c.name) + '</option>'; }).join(''),
+        '</select></div>',
+        '<div id="due-orders"></div>',
+        '<div id="pay-form" style="display:none"></div>',
+        '</div>'
+      ].join('') + '<script>initPaymentPage()<\/script>';
+    });
   }
 
   function renderAudit() {
-    return '<div class="card"><h2>ตรวจสอบย้อนหลัง</h2><p>หน้านี้กำลังอยู่ในขั้นตอนการพัฒนาใน Phase ถัดไป</p></div>';
+    return [
+      '<div class="card"><h2>ตรวจสอบย้อนหลัง</h2>',
+      '<div class="grid grid-3" style="margin-bottom:12px">',
+      '  <div class="form-group"><label>ประเภท</label><select id="audit-action">',
+      '    <option value="">ทั้งหมด</option><option>CREATE</option><option>UPDATE</option><option>STATUS_CHANGE</option><option>ISSUE_DOC</option><option>PAYMENT</option><option>VOID</option><option>CANCEL</option><option>PRINT</option><option>LOGIN</option>',
+      '  </select></div>',
+      '  <div class="form-group"><label>คำค้น</label><input id="audit-keyword" placeholder="เลขที่เอกสาร / อีเมล / เหตุผล"></div>',
+      '  <div class="form-group" style="align-self:end"><button class="btn btn-primary" onclick="loadAuditLogs()">ค้นหา</button></div>',
+      '</div>',
+      '<div id="audit-result"></div>',
+      '</div>'
+    ].join('') + '<script>initAuditPage();loadAuditLogs()<\/script>';
   }
 
   function renderSettings() {
-    return '<div class="card"><h2>ตั้งค่า</h2><p>หน้านี้กำลังอยู่ในขั้นตอนการพัฒนาใน Phase ถัดไป</p></div>';
+    return callServerArgs('searchCustomers', '').then(function (res) {
+      var customers = res.data;
+      return [
+        '<div class="card"><h2>ตั้งค่า</h2>',
+        '<h3 style="margin:8px 0 12px">สร้างลูกค้าใหม่</h3>',
+        '<div class="grid grid-2">',
+        '  <div class="form-group"><label>ชื่อลูกค้า *</label><input id="nc-name"></div>',
+        '  <div class="form-group"><label>ประเภท</label><select id="nc-type"><option value="RETAIL">ขายปลีก</option><option value="WHOLESALE">ขายส่ง</option></select></div>',
+        '  <div class="form-group"><label>เบอร์โทร</label><input id="nc-phone"></div>',
+        '  <div class="form-group"><label>เลขผู้เสียภาษี</label><input id="nc-tax"></div>',
+        '  <div class="form-group"><label>เครดิต (วัน)</label><input id="nc-credit" type="number" value="0"></div>',
+        '  <div class="form-group"><label>ที่อยู่</label><input id="nc-addr"></div>',
+        '</div>',
+        '<button class="btn btn-primary" onclick="saveNewCustomer()">บันทึกลูกค้า</button>',
+        '</div>',
+        '<div class="card"><h2>ลูกค้าในระบบ</h2>',
+        '<div class="table-wrap"><table class="data">',
+        '  <thead><tr><th>รหัส</th><th>ชื่อ</th><th>โทร</th><th>ประเภท</th><th>เครดิต</th></tr></thead>',
+        '  <tbody>' + customers.map(function (c) { return '<tr><td>' + esc(c.code) + '</td><td>' + esc(c.name) + '</td><td>' + esc(c.phone) + '</td><td>' + esc(c.customer_type) + '</td><td>' + esc(c.credit_days) + '</td></tr>'; }).join('') + '</tbody>',
+        '</table></div></div>',
+        '<div class="card"><h2>อื่นๆ</h2>',
+        '<button class="btn btn-secondary" onclick="manualBackup()">สำรองข้อมูลตอนนี้ (Backup)</button>',
+        '</div>'
+      ].join('');
+    });
   }
 
   // ===== Expose global =====

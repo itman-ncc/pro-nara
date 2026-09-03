@@ -108,6 +108,23 @@ var ROLES = {
   STAFF: 'STAFF'
 };
 
+// ประเภทเอกสารที่ "ล็อก" ใบสั่งจ้าง — เมื่อออกเอกสารประเภทนี้แล้วห้ามแก้ไข/ออกซ้ำ (RULE-01)
+var LOCK_DOC_TYPES = [DOC_TYPES.RECEIPT, DOC_TYPES.TAX_INVOICE];
+
+// ตารางสิทธิ์ขั้นต่ำตามสถานะของใบสั่งจ้าง (RULE-02)
+// ใช้ในการตรวจสิทธิ์แก้ไข/ยกเลิกต่อสถานะ
+var STATUS_ROLE = {
+  DRAFT: ROLES.STAFF,
+  QUOTED: ROLES.STAFF,
+  CONFIRMED: ROLES.STAFF,
+  IN_PRODUCTION: ROLES.STAFF,
+  DELIVERED: ROLES.STAFF,
+  BILLED: ROLES.STAFF,
+  PARTIAL_PAID: ROLES.MANAGER,
+  PAID: ROLES.MANAGER,
+  CANCELLED: ROLES.MANAGER
+};
+
 // ระยะเวลา lock (ตัวเลขดังกล่าวต้องการให้เป็นหน่วย ms แต่ LockService ใช้ ms)
 var LOCK_TIMEOUT_MS = 20000;
 

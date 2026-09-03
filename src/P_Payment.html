@@ -1,8 +1,87 @@
-<!-- P_Payment.html - หน้ารับชำระ (อยู่ใน Phase 4) -->
+<!-- P_Payment.html - หน้ารับชำระ (Payment) -->
 <script>
-// ฟังก์ชันสำหรับหน้ารับชำระ (จะพัฒนาเต็มรูปแบบใน Phase 4)
+// init หน้าเมื่อ renderPayment โหลดแล้ว
 function initPaymentPage() {
-  var el = document.getElementById('app');
+  var el = document.getElementById('due-orders');
   if (!el) return;
+}
+
+// โหลดรายการค้างชำระของลูกค้าที่เลือก
+function loadDueOrders() {
+  var custSel = document.getElementById('pay-cust');
+  var custId = custSel ? custSel.value : '';
+  var box = document.getElementById('due-orders');
+  var form = document.getElementById('pay-form');
+  if (!custId) { box.innerHTML = ''; form.style.display = 'none'; return; }
+
+  box.innerHTML = '<p>โหลด...</p>';
+  callServerArgs('listDueOrders', custId).then(function (res) {
+    var orders = res.data || [];
+    if (!orders.length) {
+      box.innerHTML = '<p style="color:var(--text-muted)">ไม่มียอดค้างชำระ</p>';
+      form.style.display = 'none';
+      return;
+    }
+    var rows = orders.map(function (o) {
+      return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td><button class="btn btn-success btn-sm" onclick="selectOrderToPay(\'' + esc(o.id) + '\')">รับชำระ</button></td></tr>';
+    }).join('');
+    box.innerHTML = '<div class="table-wrap"><table class="data"><thead><tr><th>เลขที่</th><th>วันที่</th><th>ยอดรวม</th><th>คงค้าง</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+    form.style.display = 'none';
+  }).catch(function (e) { box.innerHTML = '<p style="color:var(--danger)">' + esc(e.message) + '</p>'; });
+}
+
+var PAY_CURRENT_ORDER = null;
+
+function selectOrderToPay(orderId) {
+  callServerArgs('getOrderDetail', orderId).then(function (res) {
+    var data = res.data;
+    var order = data.order;
+    PAY_CURRENT_ORDER = order;
+    var form = document.getElementById('pay-form');
+    form.style.display = 'block';
+    form.innerHTML = [
+      '<h3 style="margin:14px 0 8px">รับชำระ ' + esc(order.doc_no) + '</h3>',
+      '<p>ยอดค้างชำระ: <strong>฿' + fmtMoney(order.balance) + '</strong> (ยอดรวม ฿' + fmtMoney(order.grand_total) + ', ชำระแล้ว ฿' + fmtMoney(order.paid_total) + ')</p>',
+      '<div class="grid grid-2" style="margin-top:12px">',
+      '  <div class="form-group"><label>จำนวนเงิน (฿)</label><input id="pay-amount" type="number" step="0.01" value="' + order.balance + '" max="' + order.balance + '"></div>',
+      '  <div class="form-group"><label>วิธีชำระ</label><select id="pay-method"><option value="CASH">เงินสด</option><option value="TRANSFER">โอน</option><option value="QR">QR</option><option value="CHEQUE">เช็ค</option><option value="CREDIT_CARD">บัตร</option></select></div>',
+      '  <div class="form-group"><label>อ้างอิง (เลขที่โอน/เช็ค)</label><input id="pay-ref"></div>',
+      '  <div class="form-group"><label>ภาษีหัก ณ ที่จ่าย (฿)</label><input id="pay-wht" type="number" step="0.01" value="0"></div>',
+      '  <div class="form-group" style="grid-column:1/-1"><label>หมายเหตุ</label><input id="pay-note"></div>',
+      '</div>',
+      '<button class="btn btn-primary" onclick="submitPayment()">ยืนยันรับชำระ</button> ',
+      '<button class="btn btn-secondary" onclick="document.getElementById(\'pay-form\').style.display=\'none\'">ปิด</button>'
+    ].join('');
+  }).catch(function (e) { toast(e.message, 'error'); });
+}
+
+function submitPayment() {
+  if (!PAY_CURRENT_ORDER) { toast('กรุณาเลือกรายการก่อน', 'error'); return; }
+  var amount = Number(document.getElementById('pay-amount').value);
+  var balance = Number(PAY_CURRENT_ORDER.balance);
+  if (!amount || amount <= 0) { toast('กรุณากรอกจำนวนเงิน', 'error'); return; }
+  if (amount > balance + 0.01) { toast('จำนวนเงินเกินยอดคงค้าง (' + fmtMoney(balance) + ')', 'error'); return; }
+
+  var payload = {
+    order_id: PAY_CURRENT_ORDER.id,
+    amount: amount,
+    method: document.getElementById('pay-method').value,
+    bank_ref: document.getElementById('pay-ref').value,
+    wht_deducted: Number(document.getElementById('pay-wht').value) || 0,
+    note: document.getElementById('pay-note').value,
+  };
+
+  callServerArgs('recordPayment', payload).then(function (res) {
+    if (res && res.ok) {
+      var extra = '';
+      if (res.data && res.data.receipt) {
+        extra = '<br>ออกใบเสร็จ <strong>' + esc(res.data.receipt.doc_no) + '</strong> อัตโนมัติ';
+      }
+      Swal.fire({ icon: 'success', title: 'รับชำระสำเร็จ', html: '<p>รับชำระ ฿' + fmtMoney(amount) + ' เรียบร้อย' + extra + '</p>' });
+      loadDueOrders();
+    } else {
+      toast((res && res.message) || 'รับชำระไม่สำเร็จ', 'error');
+    }
+  }).catch(function (e) { toast(e.message, 'error'); });
 }
 </script>

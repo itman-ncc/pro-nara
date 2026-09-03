@@ -162,3 +162,35 @@ function getDocument(docId) {
     return { ok: false, data: null, message: e.message };
   }
 }
+
+/**
+ * รายชื่อเอกสารทั้งหมด — สำหรับหน้า วางบิล / ตรวจสอบ
+ * @param {Object} opts { doc_type, order_id, status, keyword, limit }
+ * @returns {{ok:boolean, data:Array, message:string}}
+ */
+function listDocuments(opts) {
+  assertRole_();
+  try {
+    opts = opts || {};
+    var limit = Math.min(Number(opts.limit) || 200, 500);
+    var all = repoRows_(SH.DOCUMENTS, false);
+
+    all = all.filter(function (d) {
+      if (opts.doc_type && String(d.doc_type) !== String(opts.doc_type)) return false;
+      if (opts.order_id && String(d.order_id) !== String(opts.order_id)) return false;
+      if (opts.status && String(d.status) !== String(opts.status)) return false;
+      if (opts.keyword) {
+        var hay = String(d.doc_no) + ' ' + String(d.doc_type);
+        if (hay.toLowerCase().indexOf(String(opts.keyword).toLowerCase()) < 0) return false;
+      }
+      return true;
+    });
+
+    all.reverse(); // ใหม่สุดก่อน
+    all = all.slice(0, limit);
+
+    return { ok: true, data: all, message: '' };
+  } catch (e) {
+    return { ok: false, data: null, message: e.message };
+  }
+}
