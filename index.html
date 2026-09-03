@@ -266,7 +266,8 @@ function badgeFor(status) {
   return '<span class="badge ' + m[0] + '">' + m[1] + '</span>';
 }
 function docTypeName(t) {
-  return { QUOTATION:'ใบเสนอราคา', DELIVERY:'ใบส่งของ', BILLING:'ใบวางบิล', RECEIPT:'ใบเสร็จ', TAX_INVOICE:'ใบกำกับภาษี' }[t] || t;
+  var m = { QUOTATION:'ใบเสนอราคา', DELIVERY:'ใบส่งของ (DO) / ใบวางบิล (BN)', BILLING:'ใบส่งของ (DO) / ใบวางบิล (BN)', RECEIPT:'ใบเสร็จ', TAX_INVOICE:'ใบกำกับภาษี' };
+  return m[t] || t;
 }
 function session() {
   return { email: APP.user ? APP.user.email : '' };
@@ -1091,7 +1092,7 @@ ROUTES.billing = function () {
     }).join('');
     showPage(
       '<div class="card"><h2>วางบิล / ออกเอกสาร</h2>' +
-      '<p class="muted" style="margin-bottom:12px">เลือกรายการเพื่อออกใบส่งของ (DO) ใบวางบิล (BN) ใบเสร็จ (RC) / ใบกำกับภาษี และพิมพ์เอกสาร</p>' +
+      '<p class="muted" style="margin-bottom:12px">เลือกรายการเพื่อออกใบส่งของ/ใบวางบิล (DO/BN) ใบเสร็จ (RC) / ใบกำกับภาษี และพิมพ์เอกสาร — ใบส่งของกับใบวางบิลเป็นเอกสารเดียวกัน ออกได้ครั้งเดียวต่อใบสั่งจ้าง</p>' +
       '<div class="filter-bar">' +
         '<div class="form-group" style="flex:1;min-width:200px"><label>ค้นหา</label><input id="bill-kw" placeholder="เลขที่ / ชื่อลูกค้า"></div>' +
         '<div class="form-group"><button class="btn btn-primary" onclick="filterBilling()">ค้นหา</button></div>' +
@@ -1138,8 +1139,9 @@ async function openBillingOrder(orderId) {
   var canReceipt = (alreadyPaid || ['BILLED','PARTIAL_PAID'].indexOf(order.status) >= 0) && Number(order.balance) <= 0.01 && !hasReceipt(docs);
 
   var docBtns = '';
-  if (canBill) docBtns += '<button class="btn btn-primary" id="b-bill">ออกใบวางบิล (BN)</button> ';
-  docBtns += '<button class="btn btn-secondary" id="b-delivery">ใบส่งของ (DO)</button> ';
+  var hasShipDoc = docs.some(function (d) { return ['DELIVERY','BILLING'].indexOf(d.doc_type) >= 0 && d.status === 'ACTIVE'; });
+  if (canBill && !hasShipDoc) docBtns += '<button class="btn btn-primary" id="b-ship">ออกใบส่งของ/ใบวางบิล (DO/BN)</button> ';
+  if (hasShipDoc) docBtns += '<span class="badge badge-billed">ออกใบส่งของ/ใบวางบิลแล้ว</span> ';
   if (canReceipt) docBtns += '<button class="btn btn-success" id="b-receipt">ออกใบเสร็จ (RC)</button> ';
   if (hasReceipt(docs)) docBtns += '<span class="badge badge-paid">ล็อกแล้ว (มีใบเสร็จ)</span> ';
 
@@ -1162,8 +1164,7 @@ async function openBillingOrder(orderId) {
     showCloseButton: true,
     showConfirmButton: false,
     didOpen: function () {
-      var b = document.getElementById('b-bill'); if (b) b.onclick = function () { issueDocType(order.id, 'BILLING'); };
-      var d = document.getElementById('b-delivery'); if (d) d.onclick = function () { issueDocType(order.id, 'DELIVERY'); };
+      var b = document.getElementById('b-ship'); if (b) b.onclick = function () { issueDocType(order.id, 'BILLING'); };
       var r = document.getElementById('b-receipt'); if (r) r.onclick = function () { issueDocType(order.id, 'RECEIPT'); };
     }
   });

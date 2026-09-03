@@ -87,6 +87,17 @@ function issueDocumentUnderLock_(orderId, docType) {
       assertRole_(ROLES.MANAGER); // RULE-02: ใบเสร็จต้องออกโดยสิทธิ์ขั้นต่ำ
     }
 
+    // ใบส่งของ (DO) กับ ใบวางบิล (BN) เป็นเอกสารเดียวกัน — ออกได้ครั้งเดียวต่อใบสั่งจ้าง
+    if (docType === DOC_TYPES.DELIVERY || docType === DOC_TYPES.BILLING) {
+      var shippingDoc = filterBy_(SH.DOCUMENTS, function (d) {
+        return String(d.order_id) === String(orderId) && d.status === 'ACTIVE'
+          && (d.doc_type === DOC_TYPES.DELIVERY || d.doc_type === DOC_TYPES.BILLING);
+      });
+      if (shippingDoc.length > 0) {
+        throw new Error('ใบสั่งจ้างนี้ออกใบส่งของ/ใบวางบิลแล้ว (' + shippingDoc[0].doc_no + ') ไม่สามารถออกซ้ำได้');
+      }
+    }
+
     var items = getOrderItems_(orderId);
     var snapshot = buildSnapshot_(order, items);
 
