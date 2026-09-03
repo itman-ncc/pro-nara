@@ -166,17 +166,21 @@
   .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
   .total-box { background: var(--bg); border-radius: 8px; padding: 12px 16px; font-size: 16px; }
 
+  .items-scroll { overflow-x: auto; }
   .item-header {
     display: grid;
-    grid-template-columns: 1.5fr 2fr 2fr 1fr 1fr 1fr 1fr 1fr auto;
+    grid-template-columns: 1.2fr 1.5fr 1.5fr 0.9fr 0.9fr 0.8fr 1fr 1fr 1.6fr 1.1fr auto;
     gap: 8px;
     margin: 6px 0 6px 0;
     padding: 0 2px;
     font-size: 12px;
     font-weight: 600;
     color: var(--text-muted);
+    min-width: 1050px;
   }
-  .item-header span:nth-child(9) { width: 40px; }
+  .item-header span:nth-child(11) { width: 40px; }
+  .item-line { font-weight: 700; color: var(--primary); white-space: nowrap; }
+  .item-note { min-width: 90px; }
 
 
   /* Print template (A4) */
@@ -480,9 +484,9 @@ ROUTES['order-form'] = function () {
     '</div>' +
     '<h3>รายการสินค้า</h3>' +
     '<div class="item-header">' +
-      '<span>หมวดสินค้า</span><span>สินค้า</span><span>รายละเอียด</span><span>กว้าง (ม.)</span><span>สูง (ม.)</span><span>จำนวน</span><span>ราคา/ตร.ม.</span><span>เพิ่มเติม</span><span></span>' +
+      '<span>หมวดสินค้า</span><span>สินค้า</span><span>รายละเอียด</span><span>กว้าง (ม.)</span><span>สูง (ม.)</span><span>จำนวน</span><span>ราคา/ตร.ม.</span><span>เพิ่มพิเศษ (฿)</span><span>หมายเหตุ<br>(ถ้าแก้ไขราคา)</span><span>รวม (฿)</span><span></span>' +
     '</div>' +
-    '<div id="items-box"></div>' +
+    '<div class="items-scroll"><div id="items-box"></div></div>' +
     '<button class="btn btn-secondary" onclick="addItemRow()">+ เพิ่มรายการ</button>' +
     '<div class="grid grid-3" style="margin-top:14px">' +
       '<div class="form-group"><label>ส่วนลด (฿)</label><input id="discount" type="number" value="0" step="0.01"></div>' +
@@ -537,7 +541,7 @@ function addItemRow() {
   if (!box) return;
   var row = document.createElement('div');
   row.className = 'item-row';
-  row.style.cssText = 'display:grid;grid-template-columns:1.5fr 2fr 2fr 1fr 1fr 1fr 1fr 1fr auto;gap:8px;margin-bottom:8px;align-items:center';
+  row.style.cssText = 'display:grid;grid-template-columns:1.2fr 1.5fr 1.5fr 0.9fr 0.9fr 0.8fr 1fr 1fr 1.6fr 1.1fr auto;gap:8px;margin-bottom:8px;align-items:center;min-width:1050px';
   row.innerHTML =
     '<input placeholder="หมวดสินค้า" class="item-cat">' +
     '<select class="item-prod">' + productOptions() + '</select>' +
@@ -545,21 +549,23 @@ function addItemRow() {
     '<input type="number" placeholder="กว้าง (ม.)" class="item-w" value="1">' +
     '<input type="number" placeholder="สูง (ม.)" class="item-h" value="1">' +
     '<input type="number" placeholder="จำนวน" class="item-qty" value="1">' +
-    '<input type="number" placeholder="ราคา/ตร.ม." class="item-price">' +
+    '<input type="number" placeholder="ราคา/ตร.ม." class="item-price" data-auto="">' +
     '<input type="number" placeholder="เพิ่มพิเศษ" class="item-extra" value="0">' +
+    '<input placeholder="หมายเหตุ" class="item-note" title="กรอกหมายเหตุถ้าแก้ไขราคาที่ไม่ตรงตามราคาเริ่มต้น">' +
+    '<span class="item-line">0</span>' +
     '<button class="btn btn-danger" onclick="this.parentNode.remove();recalc()">✕</button>';
   box.appendChild(row);
 
   var prodSel = row.querySelector('.item-prod');
   var desc = row.querySelector('.item-desc');
   var price = row.querySelector('.item-price');
-  prodSel.addEventListener('change', function () {
+  var setAutoPrice = function () {
     var opt = prodSel.options[prodSel.selectedIndex];
     var mode = document.getElementById('sale-mode').value;
     var defaultPrice = mode === 'WHOLESALE' ? opt.getAttribute('data-whole') : opt.getAttribute('data-retail');
-    if (opt.value) { desc.value = opt.getAttribute('data-name'); price.value = defaultPrice; } else { desc.value = ''; price.value = ''; }
-    recalc();
-  });
+    if (opt.value) { desc.value = opt.getAttribute('data-name'); price.value = defaultPrice; price.setAttribute('data-auto', defaultPrice); } else { desc.value = ''; price.value = ''; price.setAttribute('data-auto', ''); }
+  };
+  prodSel.addEventListener('change', function () { setAutoPrice(); recalc(); });
   document.getElementById('sale-mode').addEventListener('change', function () {
     box.querySelectorAll('.item-row').forEach(function (r) {
       var sel = r.querySelector('.item-prod');
@@ -567,6 +573,7 @@ function addItemRow() {
       if (opt && opt.value) {
         var def = this.value === 'WHOLESALE' ? opt.getAttribute('data-whole') : opt.getAttribute('data-retail');
         r.querySelector('.item-price').value = def;
+        r.querySelector('.item-price').setAttribute('data-auto', def);
       }
       recalc();
     }.bind(this));
@@ -574,9 +581,15 @@ function addItemRow() {
   row.querySelectorAll('input').forEach(function (inp) { inp.addEventListener('input', recalc); });
 }
 
+function itemLineAmount(it) {
+  var w = Number(it.width_m) || 0, h = Number(it.height_m) || 0, q = Number(it.qty) || 1, p = Number(it.unit_price) || 0, ex = Number(it.extra_charge) || 0;
+  return (Math.max(w * h, 0)) * q * p + ex;
+}
+
 function getItems() {
   var items = [];
   document.querySelectorAll('#items-box .item-row').forEach(function (row) {
+    var priceEl = row.querySelector('.item-price');
     items.push({
       product_id: row.querySelector('.item-prod').value || null,
       category: row.querySelector('.item-cat').value,
@@ -584,9 +597,17 @@ function getItems() {
       width_m: row.querySelector('.item-w').value,
       height_m: row.querySelector('.item-h').value,
       qty: row.querySelector('.item-qty').value,
-      unit_price: row.querySelector('.item-price').value !== '' ? Number(row.querySelector('.item-price').value) : null,
+      unit_price: priceEl.value !== '' ? Number(priceEl.value) : null,
       extra_charge: row.querySelector('.item-extra').value,
-      note: ''
+      note: row.querySelector('.item-note').value,
+      auto_price: priceEl.getAttribute('data-auto') !== '' ? Number(priceEl.getAttribute('data-auto')) : null,
+      _line: itemLineAmount({
+        width_m: row.querySelector('.item-w').value,
+        height_m: row.querySelector('.item-h').value,
+        qty: row.querySelector('.item-qty').value,
+        unit_price: priceEl.value,
+        extra_charge: row.querySelector('.item-extra').value
+      })
     });
   });
   return items;
@@ -595,9 +616,10 @@ function getItems() {
 function recalc() {
   var items = getItems();
   var sub = 0;
-  items.forEach(function (it) {
-    var w = Number(it.width_m) || 0, h = Number(it.height_m) || 0, q = Number(it.qty) || 1, p = Number(it.unit_price) || 0, ex = Number(it.extra_charge) || 0;
-    sub += (Math.max(w * h, 0)) * q * p + ex;
+  document.querySelectorAll('#items-box .item-row').forEach(function (row, i) {
+    var amt = items[i] ? items[i]._line : 0;
+    var lineEl = row.querySelector('.item-line'); if (lineEl) lineEl.textContent = fmtMoney(amt);
+    sub += amt;
   });
   var discount = Number(document.getElementById('discount').value) || 0;
   var vatMode = document.getElementById('vat-mode').value;
@@ -610,6 +632,16 @@ function recalc() {
 async function saveOrder() {
   var custId = document.getElementById('cust-id').value;
   if (!custId) { toast('กรุณาเลือกลูกค้า', 'error'); return; }
+  var items = getItems().filter(function (it) { return it.description; });
+  if (!items.length) { toast('กรุณาเพิ่มรายการสินค้า', 'error'); return; }
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    var overridden = it.auto_price !== null && it.unit_price !== null && it.unit_price !== it.auto_price;
+    if (overridden && !(it.note && String(it.note).trim())) {
+      toast('รายการที่ ' + (i + 1) + ' แก้ไขราคา — กรุณากรอกหมายเหตุ (ที่หมายเหตุ) ด้วย', 'error');
+      return;
+    }
+  }
   var payload = {
     customer_id: custId,
     sale_mode: document.getElementById('sale-mode').value,
@@ -617,7 +649,19 @@ async function saveOrder() {
     discount_amt: document.getElementById('discount').value,
     vat_mode: document.getElementById('vat-mode').value,
     wht_amount: document.getElementById('wht').value,
-    items: getItems().filter(function (it) { return it.description; })
+    items: items.map(function (it) {
+      return {
+        product_id: it.product_id,
+        category: it.category,
+        description: it.description,
+        width_m: it.width_m,
+        height_m: it.height_m,
+        qty: it.qty,
+        unit_price: it.unit_price,
+        extra_charge: it.extra_charge,
+        extra_note: it.note
+      };
+    })
   };
   if (!payload.items.length) { toast('กรุณาเพิ่มรายการสินค้า', 'error'); return; }
   var res = await api('createOrder', payload);
