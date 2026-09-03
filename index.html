@@ -561,6 +561,10 @@ ROUTES.orders = function () {
         }
         acts += '<button class="btn btn-primary btn-sm" onclick="openBillingOrder(\'' + esc(o.id) + '\')">ออกเอกสาร</button> ';
         acts += '<button class="btn btn-danger btn-sm" onclick="cancelOrderPrompt(\'' + esc(o.id) + '\')">ยกเลิก</button>';
+      } else if (o.status === 'PAID') {
+        acts += '<button class="btn btn-success btn-sm" onclick="openBillingOrder(\'' + esc(o.id) + '\')">ใบเสร็จ</button> ';
+      } else if (o.status === 'PAID') {
+        acts += '<button class="btn btn-success btn-sm" onclick="openBillingOrder(\'' + esc(o.id) + '\')">ใบเสร็จ</button> ';
       }
       return '<tr>' +
         '<td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td>' +
@@ -1059,7 +1063,7 @@ function cancelOrderPrompt(orderId) {
 ROUTES.billing = function () {
   return mustApi('listOrders', {}).then(function (orders) {
     var eligible = orders.filter(function (o) {
-      return ['DELIVERED','CONFIRMED','IN_PRODUCTION','BILLED','PARTIAL_PAID','QUOTED'].indexOf(o.status) >= 0 && o.status !== 'CANCELLED';
+    return ['DELIVERED','CONFIRMED','IN_PRODUCTION','BILLED','PARTIAL_PAID','QUOTED'].indexOf(o.status) >= 0 || o.status === 'PAID';
     });
     var rows = eligible.map(function (o) {
       return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td>' +
@@ -1087,7 +1091,7 @@ async function filterBilling() {
   var res = await api('listOrders', payload);
   var orders = (res && res.ok) ? res.data : [];
   var eligible = orders.filter(function (o) {
-    return ['DELIVERED','CONFIRMED','IN_PRODUCTION','BILLED','PARTIAL_PAID','QUOTED'].indexOf(o.status) >= 0 && o.status !== 'CANCELLED';
+    return ['DELIVERED','CONFIRMED','IN_PRODUCTION','BILLED','PARTIAL_PAID','QUOTED'].indexOf(o.status) >= 0 || o.status === 'PAID';
   });
   var rows = eligible.map(function (o) {
     return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td>' +
@@ -1108,14 +1112,15 @@ async function openBillingOrder(orderId) {
   var dr = await api('listDocuments', { order_id: orderId });
   var docs = (dr && dr.data) || [];
 
-  var getLocked = ['PARTIAL_PAID','PAID'].indexOf(order.status) >= 0 || hasReceipt(docs);
+  var alreadyPaid = order.status === 'PAID';
   var canBill = ['DELIVERED','CONFIRMED','IN_PRODUCTION','BILLED','QUOTED'].indexOf(order.status) >= 0;
-  var canReceipt = ['BILLED','PARTIAL_PAID'].indexOf(order.status) >= 0 && Number(order.balance) <= 0.01 && !getLocked;
+  // ออกใบเสร็จได้เมื่อ: ชำระครบแล้ว (PAID) หรือ วางบิล/จ่ายบางส่วนที่ยอดครบ แต่ยังไม่มีใบเสร็จ
+  var canReceipt = (alreadyPaid || ['BILLED','PARTIAL_PAID'].indexOf(order.status) >= 0) && Number(order.balance) <= 0.01 && !hasReceipt(docs);
 
   var docBtns = '';
   if (canBill) docBtns += '<button class="btn btn-primary" id="b-bill">ออกใบวางบิล (BN)</button> ';
   docBtns += '<button class="btn btn-secondary" id="b-delivery">ใบส่งของ (DO)</button> ';
-  if (canReceipt && !hasReceipt(docs)) docBtns += '<button class="btn btn-success" id="b-receipt">ออกใบเสร็จ (RC)</button> ';
+  if (canReceipt) docBtns += '<button class="btn btn-success" id="b-receipt">ออกใบเสร็จ (RC)</button> ';
   if (hasReceipt(docs)) docBtns += '<span class="badge badge-paid">ล็อกแล้ว (มีใบเสร็จ)</span> ';
 
   var docsTable = docs.length ? '<h4 style="margin:14px 0 8px">เอกสารที่ออกแล้ว</h4><div class="table-wrap"><table class="data"><thead><tr><th>เลขที่</th><th>ประเภท</th><th>วันที่</th><th>พิมพ์</th><th>ยกเลิก</th></tr></thead><tbody>' +
