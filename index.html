@@ -289,19 +289,17 @@ async function mustApi(action, payload) {
 /* ================== ROUTER ================== */
 function navigate(route) {
   APP.route = route;
-  var el = document.getElementById('app');
   var navBtns = document.querySelectorAll('.nav button');
   navBtns.forEach(function (b) { b.classList.remove('active'); });
   var active = document.querySelector('.nav button[data-route="' + route + '"]');
   if (active) active.classList.add('active');
 
   var renderer = ROUTES[route] || renderDashboard;
-  renderer().then(function (html) {
+  renderer().then(function () {
     if (route !== APP.route) return; // โดดข้ามถ้าเปลี่ยน route ไปแล้ว
-    el.innerHTML = html;
     window.scrollTo(0, 0);
   }).catch(function (err) {
-    el.innerHTML = '<div class="app-container"><div class="card"><h2>เกิดข้อผิดพลาด</h2><p>' + esc(err.message || err) + '</p></div></div>';
+    showPage('<div class="card"><h2>เกิดข้อผิดพลาด</h2><p>' + esc(err.message || err) + '</p></div>');
   });
 }
 var ROUTES = {};
