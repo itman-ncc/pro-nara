@@ -166,6 +166,19 @@
   .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
   .total-box { background: var(--bg); border-radius: 8px; padding: 12px 16px; font-size: 16px; }
 
+  .item-header {
+    display: grid;
+    grid-template-columns: 2fr 2fr 1fr 1fr 1fr 1fr 1fr auto;
+    gap: 8px;
+    margin: 6px 0 6px 0;
+    padding: 0 2px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .item-header span:nth-child(8) { width: 40px; }
+
+
   /* Print template (A4) */
   @media print { body * { visibility: hidden; } #print-area, #print-area * { visibility: visible; } #print-area { position: absolute; left: 0; top: 0; width: 100%; } }
 </style>
@@ -466,6 +479,9 @@ ROUTES['order-form'] = function () {
       '<div class="form-group"><label>กำหนดส่ง</label><input id="due-date" type="date"></div>' +
     '</div>' +
     '<h3>รายการสินค้า</h3>' +
+    '<div class="item-header">' +
+      '<span>สินค้า</span><span>รายละเอียด</span><span>กว้าง (ม.)</span><span>สูง (ม.)</span><span>จำนวน</span><span>ราคา/ตร.ม.</span><span>เพิ่มเติม</span><span></span>' +
+    '</div>' +
     '<div id="items-box"></div>' +
     '<button class="btn btn-secondary" onclick="addItemRow()">+ เพิ่มรายการ</button>' +
     '<div class="grid grid-3" style="margin-top:14px">' +
