@@ -75,6 +75,19 @@
     font-size: 13px; font-family: inherit;
   }
   .member-btn:hover { background: var(--bg); color: var(--primary); border-color: var(--primary-light); }
+  .captcha-row { display: flex; gap: 8px; align-items: center; }
+  .captcha-row canvas { border: 1px solid var(--border); border-radius: 8px; background: #eef2f6; flex: 0 0 auto; }
+  .captcha-row input { flex: 1; text-transform: uppercase; letter-spacing: 2px; }
+  .captcha-refresh {
+    border: 1px solid var(--border); background: var(--surface); border-radius: 8px;
+    padding: 9px 10px; cursor: pointer; font-size: 16px; line-height: 1; color: var(--text-muted);
+  }
+  .captcha-refresh:hover { background: var(--bg); color: var(--primary); }
+  .remember-row {
+    display: flex; align-items: center; gap: 7px; margin: 2px 0 12px; font-size: 14px;
+    color: var(--text-muted); cursor: pointer; user-select: none;
+  }
+  .remember-row input { width: auto !important; accent-color: var(--primary); }
 
   /* ===== App shell ===== */
   .app-header {
@@ -366,8 +379,16 @@ function renderLogin() {
           '<button type="button" class="pass-toggle" id="lg-toggle" onclick="toggleShowPass()" title="แสดง/ซ่อนรหัสผ่าน">👁</button>' +
         '</div>' +
       '</div>' +
+      '<div class="field"><label>รหัสยืนยัน (กันหุ่นยนต์)</label>' +
+        '<div class="captcha-row">' +
+          '<canvas id="lg-captcha" width="150" height="44" title="คลิก 🔄 เพื่อสุ่มรหัสใหม่"></canvas>' +
+          '<button type="button" class="captcha-refresh" onclick="genCaptcha()" title="สุ่มรหัสใหม่">🔄</button>' +
+          '<input id="lg-captcha-in" placeholder="กรอกรหัสในภาพ" autocomplete="off" maxlength="4">' +
+        '</div>' +
+      '</div>' +
+      '<label class="remember-row"><input type="checkbox" id="lg-remember"> จำรหัสผ่านไว้บนเครื่องนี้</label>' +
       '<button class="login-btn" onclick="doLogin()">เข้าสู่ระบบ</button>' +
-      '<button type="button" class="member-btn" onclick="toggleMemberHint()">🔄 จำรหัสผ่าน</button>' +
+      '<button type="button" class="member-btn" onclick="toggleMemberHint()">❓ ลืมรหัสผ่าน (ดูบัญชีเริ่มต้น)</button>' +
       '<div class="login-hint" id="lg-member-hint" style="display:none">' +
         'บัญชีเริ่มต้น (หลัง setup):<br>' +
         'admin@pro-nara.com / admin123<br>' +
@@ -378,7 +399,57 @@ function renderLogin() {
 
   var pass = document.getElementById('lg-pass');
   pass.addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+  var capIn = document.getElementById('lg-captcha-in');
+  if (capIn) capIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') doLogin(); });
+  genCaptcha();
+
+  var rem = null;
+  try { rem = JSON.parse(localStorage.getItem('vn_remember') || 'null'); } catch (e) { rem = null; }
+  if (rem && rem.email) {
+    document.getElementById('lg-email').value = rem.email;
+    if (rem.pass) document.getElementById('lg-pass').value = decPass_(rem.pass);
+    var cb = document.getElementById('lg-remember'); if (cb) cb.checked = true;
+  }
 }
+
+var CAPTCHA = { code: '' };
+function genCaptcha() {
+  var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  var code = '';
+  for (var i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+  CAPTCHA.code = code;
+  var cv = document.getElementById('lg-captcha');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  ctx.fillStyle = '#eef2f6';
+  ctx.fillRect(0, 0, W, H);
+  for (var i = 0; i < 5; i++) {
+    ctx.strokeStyle = 'rgba(' + Math.floor(Math.random() * 180) + ',' + Math.floor(Math.random() * 180) + ',' + Math.floor(Math.random() * 180) + ',0.45)';
+    ctx.lineWidth = 1 + Math.random() * 1.5;
+    ctx.beginPath();
+    ctx.moveTo(Math.random() * W, Math.random() * H);
+    ctx.lineTo(Math.random() * W, Math.random() * H);
+    ctx.stroke();
+  }
+  for (var i = 0; i < 32; i++) {
+    ctx.fillStyle = 'rgba(' + Math.floor(Math.random() * 200) + ',' + Math.floor(Math.random() * 200) + ',' + Math.floor(Math.random() * 200) + ',0.5)';
+    ctx.fillRect(Math.random() * W, Math.random() * H, 2, 2);
+  }
+  var colors = ['#1a73e8', '#d93025', '#188038', '#e37400'];
+  for (var i = 0; i < code.length; i++) {
+    ctx.save();
+    ctx.translate(22 + i * 30 + Math.random() * 6, H / 2 + (Math.random() * 8 - 4));
+    ctx.rotate((Math.random() - 0.5) * 0.55);
+    ctx.font = 'bold 23px Sarabun, Arial, sans-serif';
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.textBaseline = 'middle';
+    ctx.fillText(code.charAt(i), 0, 0);
+    ctx.restore();
+  }
+}
+function encPass_(s) { try { return btoa(unescape(encodeURIComponent(s))); } catch (e) { return ''; } }
+function decPass_(s) { try { return decodeURIComponent(escape(atob(s))); } catch (e) { return ''; } }
 function toggleShowPass() {
   var inp = document.getElementById('lg-pass');
   if (!inp) return;
@@ -396,11 +467,30 @@ async function doLogin() {
   var email = document.getElementById('lg-email').value.trim();
   var password = document.getElementById('lg-pass').value;
   if (!email || !password) { toast('กรุณากรอกอีเมลและรหัสผ่าน', 'error'); return; }
+  var capIn = document.getElementById('lg-captcha-in');
+  if (!CAPTCHA.code || !capIn || capIn.value.trim().toUpperCase() !== CAPTCHA.code) {
+    toast('รหัสยืนยันไม่ถูกต้อง กรุณากรอกใหม่', 'error');
+    genCaptcha();
+    capIn.value = '';
+    if (capIn.focus) capIn.focus();
+    return;
+  }
   var res = await api('login', { email: email, password: password });
-  if (!res || !res.ok) { toast((res && res.message) || 'เข้าสู่ระบบไม่สำเร็จ', 'error'); return; }
+  if (!res || !res.ok) {
+    toast((res && res.message) || 'เข้าสู่ระบบไม่สำเร็จ', 'error');
+    genCaptcha();
+    if (capIn) capIn.value = '';
+    return;
+  }
   APP.user = res.data;
   APP.loggingOut = false;
   localStorage.setItem('vn_session', email);
+  var remCb = document.getElementById('lg-remember');
+  if (remCb && remCb.checked) {
+    localStorage.setItem('vn_remember', JSON.stringify({ email: email, pass: encPass_(password) }));
+  } else {
+    localStorage.removeItem('vn_remember');
+  }
   boot();
 }
 function doLogout() {
