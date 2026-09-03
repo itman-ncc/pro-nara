@@ -576,7 +576,7 @@ ROUTES['order-form'] = function () {
       '<button class="btn btn-primary" onclick="openItemPopup()">+ เพิ่มรายการสินค้า</button>' +
     '</h3>' +
     '<div class="table-wrap"><table class="data items-tbl"><thead><tr>' +
-      '<th>#</th><th>สินค้า / หมวด</th><th>ขนาด (ม.)</th><th class="num">จำนวน</th><th class="num">ตร.ม.</th><th class="num">ราคา/ตร.ม.</th><th class="num">เพิ่มพิเศษ</th><th>หมายเหตุ</th><th class="num">รวม (฿)</th><th></th>' +
+      '<th>#</th><th>สินค้า / รายละเอียด</th><th>ขนาด (ม.)</th><th class="num">จำนวน</th><th class="num">ตร.ม.</th><th class="num">ราคา/ตร.ม.</th><th class="num">เพิ่มพิเศษ</th><th>หมายเหตุ</th><th class="num">รวม (฿)</th><th></th>' +
     '</tr></thead><tbody id="items-tbody"></tbody></table></div>' +
     '<div class="grid grid-3" style="margin-top:14px">' +
       '<div class="form-group"><label>ส่วนลด (฿)</label><input id="discount" type="number" value="0" step="0.01"></div>' +
@@ -643,7 +643,7 @@ function initOrderForm() {
 function productOptions() {
   return '<option value="">-- เลือกสินค้า --</option>' + APP.products.map(function (p) {
     return '<option value="' + p.id + '" data-retail="' + p.price_retail + '" data-whole="' + p.price_wholesale + '" data-name="' + esc(p.name) + '">' + esc(p.name) + '</option>';
-  }).join('');
+  }).join('') + '<option value="__other__">อื่นๆ (พิมพ์ชื่อเอง)</option>';
 }
 
 var ORDER_ITEMS = [];
@@ -657,9 +657,9 @@ function openItemPopup(idx) {
     width: 560,
     html:
       '<div class="im-grid">' +
-        '<div><label>หมวดสินค้า</label><input id="im-cat" placeholder="หมวดสินค้า" value="' + esc(it ? it.category : '') + '"></div>' +
-        '<div><label>สินค้า</label><select id="im-prod">' + productOptions() + '</select></div>' +
-        '<div class="span2"><label>รายละเอียด *</label><input id="im-desc" placeholder="รายละเอียดสินค้า" value="' + esc(it ? it.description : '') + '"></div>' +
+        '<div class="span2"><label>สินค้า</label><select id="im-prod">' + productOptions() + '</select></div>' +
+        '<div class="span2" id="im-other-hint" style="display:none;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 12px;font-size:13px;color:#92400e">เลือก "อื่นๆ" — พิมพ์ชื่อสินค้าในช่องรายละเอียด และกรอกราคา/ตร.ม. เอง</div>' +
+        '<div class="span2"><label>รายละเอียด *</label><input id="im-desc" placeholder="ชื่อสินค้า / รายละเอียด" value="' + esc(it ? it.description : '') + '"></div>' +
         '<div><label>กว้าง (ม.)</label><input id="im-w" type="number" step="0.01" min="0" value="' + (it ? esc(it.width_m) : 1) + '"></div>' +
         '<div><label>สูง (ม.)</label><input id="im-h" type="number" step="0.01" min="0" value="' + (it ? esc(it.height_m) : 1) + '"></div>' +
         '<div><label>จำนวน</label><input id="im-qty" type="number" step="1" min="1" value="' + (it ? esc(it.qty) : 1) + '"></div>' +
@@ -676,12 +676,28 @@ function openItemPopup(idx) {
       var prodSel = document.getElementById('im-prod');
       var desc = document.getElementById('im-desc');
       var price = document.getElementById('im-price');
+      var hint = document.getElementById('im-other-hint');
+      var setOtherMode = function (on) {
+        if (hint) hint.style.display = on ? 'block' : 'none';
+        desc.placeholder = on ? 'ชื่อสินค้าอื่น ๆ / รายละเอียด *' : 'ชื่อสินค้า / รายละเอียด';
+      };
       if (it) {
         if (it.product_id) prodSel.value = it.product_id;
+        else if (it.description) { prodSel.value = '__other__'; setOtherMode(true); }
         if (it.unit_price !== null && it.unit_price !== undefined) price.value = it.unit_price;
         price.setAttribute('data-auto', (it.auto_price !== null && it.auto_price !== undefined) ? it.auto_price : '');
       }
       prodSel.addEventListener('change', function () {
+        if (prodSel.value === '__other__') {
+          setOtherMode(true);
+          desc.value = '';
+          price.value = '';
+          price.setAttribute('data-auto', '');
+          imLiveCalc();
+          desc.focus();
+          return;
+        }
+        setOtherMode(false);
         var opt = prodSel.options[prodSel.selectedIndex];
         var modeEl = document.getElementById('sale-mode');
         var mode = modeEl ? modeEl.value : 'RETAIL';
@@ -697,18 +713,18 @@ function openItemPopup(idx) {
       desc.focus();
     },
     preConfirm: function () {
+      var prodVal = document.getElementById('im-prod').value;
       var desc = String(document.getElementById('im-desc').value || '').trim();
       var priceRaw = document.getElementById('im-price').value;
       var price = priceRaw !== '' ? Number(priceRaw) : null;
       var autoRaw = document.getElementById('im-price').getAttribute('data-auto');
       var auto = (autoRaw !== null && autoRaw !== '') ? Number(autoRaw) : null;
       var note = String(document.getElementById('im-note').value || '').trim();
-      if (!desc) { Swal.showValidationMessage('กรุณากรอกรายละเอียดสินค้า'); return false; }
+      if (!desc) { Swal.showValidationMessage('กรุณากรอกชื่อสินค้า / รายละเอียด'); return false; }
       if (price === null || isNaN(price)) { Swal.showValidationMessage('กรุณาระบุราคา/ตร.ม.'); return false; }
       if (auto !== null && price !== auto && !note) { Swal.showValidationMessage('แก้ไขราคาจากราคาเริ่มต้น — กรุณากรอกหมายเหตุด้วย'); return false; }
       return {
-        product_id: document.getElementById('im-prod').value || null,
-        category: String(document.getElementById('im-cat').value || '').trim(),
+        product_id: (prodVal && prodVal !== '__other__') ? prodVal : null,
         description: desc,
         width_m: document.getElementById('im-w').value,
         height_m: document.getElementById('im-h').value,
@@ -744,7 +760,7 @@ function renderItemsTable() {
   var tb = document.getElementById('items-tbody');
   if (!tb) return;
   if (!ORDER_ITEMS.length) {
-    tb.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--text-muted);padding:18px">ยังไม่มีรายการ — กด "+ เพิ่มรายการสินค้า"</td></tr>';
+    tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--text-muted);padding:18px">ยังไม่มีรายการ — กด "+ เพิ่มรายการสินค้า"</td></tr>';
     return;
   }
   tb.innerHTML = ORDER_ITEMS.map(function (it, i) {
@@ -753,7 +769,7 @@ function renderItemsTable() {
     var overridden = it.auto_price !== null && it.unit_price !== it.auto_price;
     return '<tr>' +
       '<td class="muted">' + (i + 1) + '</td>' +
-      '<td><div class="itm-main">' + esc(it.description) + '</div>' + (it.category ? '<div class="itm-sub">' + esc(it.category) + '</div>' : '') + '</td>' +
+      '<td><div class="itm-main">' + esc(it.description) + '</div></td>' +
       '<td class="muted">' + w + ' × ' + h + '</td>' +
       '<td class="num">' + q + '</td>' +
       '<td class="num">' + fmtMoney(area) + '</td>' +
@@ -821,7 +837,6 @@ async function saveOrder() {
     items: items.map(function (it) {
       return {
         product_id: it.product_id,
-        category: it.category,
         description: it.description,
         width_m: it.width_m,
         height_m: it.height_m,
@@ -846,14 +861,14 @@ async function openOrderDetail(orderId) {
   var order = res.data.order;
   var items = res.data.items;
   var rows = items.map(function (it) {
-    return '<tr><td>' + esc(it.description) + '</td><td>' + esc(it.category || '') + '</td><td>' + esc(it.width_m) + 'x' + esc(it.height_m) + '</td><td>' + esc(it.qty) + '</td><td>' + esc(it.area_sqm) + '</td><td>' + fmtMoney(it.unit_price) + '</td><td>' + fmtMoney(it.line_total) + '</td></tr>';
+    return '<tr><td>' + esc(it.description) + '</td><td>' + esc(it.width_m) + 'x' + esc(it.height_m) + '</td><td>' + esc(it.qty) + '</td><td>' + esc(it.area_sqm) + '</td><td>' + fmtMoney(it.unit_price) + '</td><td>' + fmtMoney(it.line_total) + '</td></tr>';
   }).join('');
   Swal.fire({
     title: 'ใบสั่งจ้าง ' + order.doc_no,
     html: '<div style="text-align:left">' +
       '<p><strong>ลูกค้า:</strong> ' + esc(order.customer_name) + '</p>' +
       '<p><strong>วันที่:</strong> ' + esc(order.order_date) + ' &nbsp; <strong>สถานะ:</strong> ' + badgeFor(order.status) + '</p>' +
-      '<div class="table-wrap"><table class="data" style="margin-top:10px;width:100%"><thead><tr><th>รายการ</th><th>หมวด</th><th>ขนาด</th><th>จำนวน</th><th>ตร.ม.</th><th>ราคา</th><th>รวม</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="table-wrap"><table class="data" style="margin-top:10px;width:100%"><thead><tr><th>รายการ</th><th>ขนาด</th><th>จำนวน</th><th>ตร.ม.</th><th>ราคา</th><th>รวม</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div style="margin-top:12px;text-align:right"><p>รวม: ฿' + fmtMoney(order.subtotal) + '</p><p>ภาษี: ฿' + fmtMoney(order.vat_amount) + '</p><p>หัก ณ ที่จ่าย: ฿' + fmtMoney(order.wht_amount) + '</p><p><strong>สุทธิ: ฿' + fmtMoney(order.grand_total) + '</strong></p></div>' +
     '</div>',
     width: 720,
@@ -1002,7 +1017,7 @@ function renderPrint(doc) {
   var typeName = docTypeName(doc.doc_type);
   var wm = doc.status === 'VOID' ? '<div class="wm">ยกเลิก</div>' : '';
   var rows = items.map(function (it) {
-    return '<tr><td>' + esc(it.line_no || '') + '</td><td>' + esc(it.description) + '</td><td>' + esc(it.category || '') + '</td><td>' + esc(it.qty) + '</td><td>' + esc(it.area_sqm) + ' ตร.ม.</td><td>' + fmtMoney(it.unit_price) + '</td><td>' + fmtMoney(it.line_total) + '</td></tr>';
+    return '<tr><td>' + esc(it.line_no || '') + '</td><td>' + esc(it.description) + '</td><td>' + esc(it.qty) + '</td><td>' + esc(it.area_sqm) + ' ตร.ม.</td><td>' + fmtMoney(it.unit_price) + '</td><td>' + fmtMoney(it.line_total) + '</td></tr>';
   }).join('');
 
   var html = '<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>' + typeName + '</title>' +
@@ -1024,7 +1039,7 @@ function renderPrint(doc) {
     '<button class="btnp" onclick="window.print()">🖨️ พิมพ์เอกสาร</button>' + wm +
     '<div class="hdr"><div><div class="title">' + typeName + '</div><div>ร้านไวนิล</div></div><div style="text-align:right"><strong>' + esc(doc.doc_no) + '</strong><br>' + esc(doc.issue_date || '') + '</div></div>' +
     '<p><strong>ลูกค้า:</strong> ' + esc(order.customer_name || '') + '</p>' +
-    '<table><thead><tr><th>#</th><th>รายการ</th><th>หมวด</th><th>จำนวน</th><th>พื้นที่</th><th>ราคา</th><th>รวม</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+    '<table><thead><tr><th>#</th><th>รายการ</th><th>จำนวน</th><th>พื้นที่</th><th>ราคา</th><th>รวม</th></tr></thead><tbody>' + rows + '</tbody></table>' +
     '<div class="tot">' +
       '<p>รวม: ฿' + fmtMoney(order.subtotal) + '</p>' +
       '<p>ภาษี: ฿' + fmtMoney(order.vat_amount) + '</p>' +
