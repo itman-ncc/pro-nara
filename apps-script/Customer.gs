@@ -69,6 +69,37 @@ function createCustomer(payload) {
 }
 
 /**
+ * ลบลูกค้า (soft delete — ตั้ง is_active = FALSE)
+ * RULE-05: ไม่มี hard delete
+ */
+function deleteCustomer(customerId, reason) {
+  assertRole_('ADMIN');
+  var lock = LockService.getScriptLock();
+  lock.waitLock(LOCK_TIMEOUT_MS);
+  try {
+    if (!reason || String(reason).trim().length < MIN_REASON_LEN) {
+      throw new Error('เหตุผลการลบต้องมีความยาวอย่างน้อย ' + MIN_REASON_LEN + ' ตัวอักษร');
+    }
+    var before = repoFindById_('Customers', customerId, true);
+    if (!before) throw new Error('ไม่พบลูกค้า');
+    if (before.is_active === 'FALSE') throw new Error('ลูกค้าถูกปิดใช้งานแล้ว');
+
+    var merged = {};
+    var keys = Object.keys(before);
+    for (var j = 0; j < keys.length; j++) merged[keys[j]] = before[keys[j]];
+    merged.is_active = 'FALSE';
+
+    repoUpdate_('Customers', customerId, merged);
+    writeAudit_('DELETE', 'Customers', customerId, null, before, merged, ['is_active'], reason);
+    return { ok: true, data: merged, message: 'ลบลูกค้าสำเร็จ' };
+  } catch (e) {
+    return { ok: false, data: null, message: e.message };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
  * แก้ไขลูกค้า
  */
 function updateCustomer(customerId, payload) {

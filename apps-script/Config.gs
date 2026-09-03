@@ -29,7 +29,8 @@ var SH = {
   AUDIT_LOG: 'AuditLog',
   CANCEL_LOG: 'CancelLog',
   COUNTERS: 'Counters',
-  USERS: 'Users'
+  USERS: 'Users',
+  SETTING: 'Setting'
 };
 
 // สถานะที่ยังแก้ไข/ยกเลิกได้โดยไม่ต้องเหตุผลขั้นต่ำ (RULE-02)

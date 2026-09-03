@@ -33,7 +33,8 @@ var SETUP_SHEETS = {
   'CancelLog': ['id', 'ts', 'user_email', 'root_order_id', 'root_doc_no', 'trigger_doc_no', 'reason',
     'affected_docs_json', 'batch_id'],
   'Counters': ['key', 'last_no'],
-  'Users': ['email', 'name', 'role', 'is_active', 'password']
+  'Users': ['email', 'name', 'role', 'is_active', 'password'],
+  'Setting': ['key', 'value']
 };
 
 /**
@@ -131,7 +132,8 @@ function setupAll() {
     summary.seeded_products = seedProducts_();
     summary.seeded_users = seedUsers_();
     summary.seeded_customers = seedCustomers_();
-    summary.seeded = summary.seeded_products + summary.seeded_users + summary.seeded_customers;
+    summary.seeded_settings = seedSettings();
+    summary.seeded = summary.seeded_products + summary.seeded_users + summary.seeded_customers + summary.seeded_settings;
 
     var message = 'สร้างชีต ' + summary.created_sheets.length + ' ชีต, ข้าม ' +
       summary.skipped_sheets.length + ' ชีต, seed ข้อมูล ' + summary.seeded + ' รายการ';

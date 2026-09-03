@@ -166,6 +166,7 @@
   .badge-partial { background: #ffedd5; color: #9a3412; }
   .badge-paid { background: #bbf7d0; color: #14532d; }
   .badge-cancelled { background: #fee2e2; color: #991b1b; }
+  .badge-active { background: #dcfce7; color: #166534; }
 
   .stat-card { text-align: center; padding: 16px; }
   .stat-value { font-size: 26px; font-weight: 700; color: var(--primary); }
@@ -215,6 +216,7 @@ var APP = {
   route: 'dashboard',
   products: [],
   customers: [],
+  settings: {},        // ข้อมูลร้านค้าจาก Setting sheet
   PAY_CURRENT_ORDER: null,
   ORDER_CACHE: null,
   loggingOut: false   // ป้องกันการ render error จาก request ที่ค้างหลัง logout
@@ -340,9 +342,11 @@ var ROUTES = {};
 /* ================== APP SHELL ================== */
 function buildShell() {
   var app = document.getElementById('app');
+  var shopLabel = APP.settings.shopName ? esc(APP.settings.shopName) : 'ระบบวางบิลร้านไวนิล';
+  var shopSub = APP.settings.shopPhone ? ' | ' + esc(APP.settings.shopPhone) : '';
   app.innerHTML =
     '<header class="app-header">' +
-      '<div class="brand">📐 ระบบวางบิลร้านไวนิล</div>' +
+      '<div class="brand">' + (APP.settings.logoUrl ? '<img src="' + esc(APP.settings.logoUrl) + '" style="height:28px;border-radius:4px">' : '📐') + ' ' + shopLabel + '<span style="font-size:12px;font-weight:400;color:var(--text-muted)">' + shopSub + '</span></div>' +
       '<div class="user-chip"><span>' + esc(APP.user.name) + ' (' + (APP.user.role || '') + ')</span><button class="logout" onclick="doLogout()">ออกจากระบบ</button></div>' +
     '</header>' +
     '<nav class="nav">' +
@@ -351,7 +355,8 @@ function buildShell() {
       '<button data-route="order-form">สร้างใบสั่งจ้าง</button>' +
       '<button data-route="billing">วางบิล/เอกสาร</button>' +
       '<button data-route="payment">รับชำระ</button>' +
-      '<button data-route="audit">ตรวจสอบ</button>' +
+      (roleAtLeast('MANAGER') ? '<button data-route="audit">ตรวจสอบ</button>' : '') +
+      '<button data-route="customers">ลูกค้า</button>' +
       '<button data-route="settings">ตั้งค่า</button>' +
     '</nav>' +
     '<div id="page" class="app-container"></div>';
@@ -370,8 +375,9 @@ function showPage(html) {
 function renderLogin() {
   document.getElementById('app').innerHTML =
     '<div class="login-wrap"><div class="login-box">' +
-      '<h1>📐 ระบบวางบิลร้านไวนิล</h1>' +
-      '<div class="sub">เข้าสู่ระบบเพื่อใช้งาน</div>' +
+      (APP.settings.logoUrl ? '<div style="text-align:center;margin-bottom:12px"><img src="' + esc(APP.settings.logoUrl) + '" style="max-height:80px;border-radius:8px"></div>' : '') +
+      '<h1>📐 ' + esc(APP.settings.shopName || 'ระบบวางบิลร้านไวนิล') + '</h1>' +
+      '<div class="sub">' + esc(APP.settings.shopAddress || 'เข้าสู่ระบบเพื่อใช้งาน') + '</div>' +
       '<div class="field"><label>อีเมล</label><input id="lg-email" type="email" placeholder="you@shop.com" autocomplete="username"></div>' +
       '<div class="field"><label>รหัสผ่าน</label>' +
         '<div class="pass-wrap">' +
@@ -506,11 +512,17 @@ function doLogout() {
 async function boot() {
   buildShell();
   try {
+    var sr = await api('getSettings', {});
+    if (sr && sr.ok) APP.settings = sr.data || {};
+  } catch (e) { APP.settings = {}; }
+  try {
     APP.products = (await mustApi('getProducts')).filter(function (p) { return !p.is_active || p.is_active === 'TRUE' || p.is_active === true; });
-  } catch (e) { APP.products = []; }
+  } catch (e) { APP.products = [];}
   try {
     APP.customers = (await mustApi('searchCustomers', { key: '' })) || [];
   } catch (e) { APP.customers = []; }
+  // Rebuild shell with settings (logo, shop name)
+  buildShell();
   navigate('dashboard');
 }
 
@@ -542,22 +554,69 @@ ROUTES.dashboard = function () {
 ROUTES.orders = function () {
   return mustApi('listOrders', {}).then(function (orders) {
     var rows = orders.map(function (o) {
+      var acts = '<button class="btn btn-secondary btn-sm" onclick="openOrderDetail(\'' + esc(o.id) + '\')">ดู</button> ';
+      if (o.status !== 'CANCELLED' && o.status !== 'PAID') {
+        if (o.status !== 'DELIVERED' && o.status !== 'BILLED' && o.status !== 'PARTIAL_PAID') {
+          acts += '<button class="btn btn-secondary btn-sm" onclick="editOrder(\'' + esc(o.id) + '\')">แก้ไข</button> ';
+        }
+        acts += '<button class="btn btn-primary btn-sm" onclick="openBillingOrder(\'' + esc(o.id) + '\')">ออกเอกสาร</button> ';
+        acts += '<button class="btn btn-danger btn-sm" onclick="cancelOrderPrompt(\'' + esc(o.id) + '\')">ยกเลิก</button>';
+      }
       return '<tr>' +
         '<td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td>' +
         '<td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td>' +
-        '<td>' +
-          '<button class="btn btn-secondary btn-sm" onclick="openOrderDetail(\'' + esc(o.id) + '\')">ดู</button> ' +
-          (o.status !== 'CANCELLED' && o.status !== 'PAID' ? '<button class="btn btn-danger btn-sm" onclick="cancelOrderPrompt(\'' + esc(o.id) + '\')">ยกเลิก</button>' : '') +
-        '</td></tr>';
+        '<td style="white-space:normal">' + acts + '</td></tr>';
     }).join('');
+    var statusOpts = '<option value="">ทั้งหมด</option>';
+    ['DRAFT','QUOTED','CONFIRMED','IN_PRODUCTION','DELIVERED','BILLED','PARTIAL_PAID','PAID','CANCELLED'].forEach(function (s) {
+      statusOpts += '<option value="' + s + '">' + badgeFor(s).replace(/<[^>]*>/g, '') + '</option>';
+    });
     showPage(
       '<div class="card"><h2>รายการใบสั่งจ้าง <button class="btn btn-primary" onclick="navigate(\'order-form\')">+ สร้างใหม่</button></h2>' +
+      '<div class="filter-bar">' +
+        '<div class="form-group" style="flex:1;min-width:180px"><label>ค้นหา</label><input id="ord-kw" placeholder="เลขที่ / ชื่อลูกค้า"></div>' +
+        '<div class="form-group" style="min-width:140px"><label>สถานะ</label><select id="ord-status">' + statusOpts + '</select></div>' +
+        '<div class="form-group" style="min-width:130px"><label>จากวันที่</label><input id="ord-from" type="date"></div>' +
+        '<div class="form-group" style="min-width:130px"><label>ถึงวันที่</label><input id="ord-to" type="date"></div>' +
+        '<div class="form-group"><button class="btn btn-primary" onclick="filterOrders()">ค้นหา</button></div>' +
+      '</div>' +
       '<div class="table-wrap"><table class="data"><thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>วันที่</th><th>ยอดรวม</th><th>คงค้าง</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody>' +
       (rows || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">ยังไม่มีใบสั่งจ้าง</td></tr>') +
       '</tbody></table></div></div>'
     );
+    document.getElementById('ord-kw').addEventListener('keydown', function (e) { if (e.key === 'Enter') filterOrders(); });
   });
 };
+
+async function filterOrders() {
+  var kw = document.getElementById('ord-kw').value.trim();
+  var status = document.getElementById('ord-status').value;
+  var from = document.getElementById('ord-from').value;
+  var to = document.getElementById('ord-to').value;
+  var payload = {};
+  if (kw) payload.keyword = kw;
+  if (status) payload.status = status;
+  if (from) payload.from_date = from;
+  if (to) payload.to_date = to;
+  var res = await api('listOrders', payload);
+  var orders = (res && res.ok) ? res.data : [];
+  var rows = orders.map(function (o) {
+    var acts = '<button class="btn btn-secondary btn-sm" onclick="openOrderDetail(\'' + esc(o.id) + '\')">ดู</button> ';
+    if (o.status !== 'CANCELLED' && o.status !== 'PAID') {
+      if (o.status !== 'DELIVERED' && o.status !== 'BILLED' && o.status !== 'PARTIAL_PAID') {
+        acts += '<button class="btn btn-secondary btn-sm" onclick="editOrder(\'' + esc(o.id) + '\')">แก้ไข</button> ';
+      }
+      acts += '<button class="btn btn-primary btn-sm" onclick="openBillingOrder(\'' + esc(o.id) + '\')">ออกเอกสาร</button> ';
+      acts += '<button class="btn btn-danger btn-sm" onclick="cancelOrderPrompt(\'' + esc(o.id) + '\')">ยกเลิก</button>';
+    }
+    return '<tr>' +
+      '<td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td>' +
+      '<td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td>' +
+      '<td style="white-space:normal">' + acts + '</td></tr>';
+  }).join('');
+  var tbody = document.querySelector('#page table tbody');
+  if (tbody) tbody.innerHTML = rows || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">ไม่พบรายการ</td></tr>';
+}
 
 /* ================== ORDER FORM ================== */
 ROUTES['order-form'] = function () {
@@ -796,7 +855,107 @@ function itemLineAmount(it) {
   return (Math.max(w * h, 0)) * q * p + ex;
 }
 
+/* ================== ORDER EDIT ================== */
+async function editOrder(orderId) {
+  var res = await api('getOrderDetail', { id: orderId });
+  if (!res || !res.ok) { toast((res && res.message) || 'ไม่พบใบสั่งจ้าง', 'error'); return; }
+  var order = res.data.order;
+  var items = res.data.items;
+  if (order.status === 'CANCELLED' || order.status === 'PAID') {
+    toast('ใบสั่งจ้างนี้ไม่สามารถแก้ไขได้', 'error'); return;
+  }
+  APP.EDITING_ORDER = order;
+  ROUTES['order-form'] = function () {
+    showPage(
+      '<div class="card"><h2>แก้ไขใบสั่งจ้าง ' + esc(order.doc_no) + '</h2>' +
+      '<div class="form-group"><label>เลือกลูกค้า (พิมพ์ค้นหา)</label>' +
+        '<div class="pos-relative"><input id="cust-search" value="' + esc(order.customer_name) + '" placeholder="ค้นหาชื่อ / เบอร์โทร..." autocomplete="off">' +
+        '<ul id="cust-list" class="autocomplete-list" style="display:none"></ul></div>' +
+        '<input type="hidden" id="cust-id" value="' + esc(order.customer_id) + '">' +
+      '</div>' +
+      '<div class="grid grid-2">' +
+        '<div class="form-group"><label>โหมดขาย</label><select id="sale-mode"><option value="RETAIL"' + (order.sale_mode === 'RETAIL' ? ' selected' : '') + '>ขายปลีก</option><option value="WHOLESALE"' + (order.sale_mode === 'WHOLESALE' ? ' selected' : '') + '>ขายส่ง</option></select></div>' +
+        '<div class="form-group"><label>กำหนดส่ง</label><input id="due-date" type="date" value="' + esc(order.due_date || '') + '"></div>' +
+      '</div>' +
+      '<h3 style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">รายการสินค้า' +
+        '<button class="btn btn-primary" onclick="openItemPopup()">+ เพิ่มรายการสินค้า</button>' +
+      '</h3>' +
+      '<div class="table-wrap"><table class="data items-tbl"><thead><tr>' +
+        '<th>#</th><th>สินค้า / รายละเอียด</th><th>ขนาด (ม.)</th><th class="num">จำนวน</th><th class="num">ตร.ม.</th><th class="num">ราคา/ตร.ม.</th><th class="num">เพิ่มพิเศษ</th><th>หมายเหตุ</th><th class="num">รวม (฿)</th><th></th>' +
+      '</tr></thead><tbody id="items-tbody"></tbody></table></div>' +
+      '<div class="grid grid-3" style="margin-top:14px">' +
+        '<div class="form-group"><label>ส่วนลด (฿)</label><input id="discount" type="number" value="' + (order.discount_amt || 0) + '" step="0.01"></div>' +
+        '<div class="form-group"><label>รูปแบบภาษี</label><select id="vat-mode"><option value="NONE"' + (order.vat_mode === 'NONE' ? ' selected' : '') + '>ไม่มีภาษี</option><option value="EXCLUDE"' + (order.vat_mode === 'EXCLUDE' ? ' selected' : '') + '>ภาษี +7% (บวกเพิ่ม)</option><option value="INCLUDE"' + (order.vat_mode === 'INCLUDE' ? ' selected' : '') + '>ภาษีรวม</option></select></div>' +
+        '<div class="form-group"><label>หัก ณ ที่จ่าย (฿)</label><input id="wht" type="number" value="' + (order.wht_amount || 0) + '" step="0.01"></div>' +
+      '</div>' +
+      '<div class="total-box"><strong>ยอดรวม (Grand Total):</strong> ฿<span id="grand-total" style="font-weight:700;color:var(--primary)">0.00</span></div>' +
+      '<div style="margin-top:14px;display:flex;gap:8px"><button class="btn btn-primary" onclick="updateOrder()">บันทึกการแก้ไข</button><button class="btn btn-secondary" onclick="navigate(\'orders\')">ยกเลิก</button></div>' +
+      '</div>'
+    );
+    ORDER_ITEMS = items.map(function (it) {
+      return {
+        product_id: it.product_id || null,
+        description: it.description,
+        width_m: it.width_m,
+        height_m: it.height_m,
+        qty: it.qty,
+        unit_price: it.unit_price,
+        extra_charge: it.extra_charge || 0,
+        note: it.extra_note || '',
+        auto_price: it.unit_price
+      };
+    });
+    initOrderForm();
+    recalc();
+  };
+  navigate('order-form');
+}
+
+async function updateOrder() {
+  if (!APP.EDITING_ORDER) { toast('ไม่พบใบสั่งจ้างที่แก้ไข', 'error'); return; }
+  var custId = document.getElementById('cust-id').value;
+  if (!custId) { toast('กรุณาเลือกลูกค้า', 'error'); return; }
+  var items = getItems().filter(function (it) { return it.description; });
+  if (!items.length) { toast('กรุณาเพิ่มรายการสินค้า', 'error'); return; }
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    var overridden = it.auto_price !== null && it.unit_price !== null && it.unit_price !== it.auto_price;
+    if (overridden && !(it.note && String(it.note).trim())) {
+      toast('รายการที่ ' + (i + 1) + ' แก้ไขราคา — กรุณากรอกหมายเหตุด้วย', 'error');
+      return;
+    }
+  }
+  var payload = {
+    id: APP.EDITING_ORDER.id,
+    customer_id: custId,
+    sale_mode: document.getElementById('sale-mode').value,
+    due_date: document.getElementById('due-date').value,
+    discount_amt: document.getElementById('discount').value,
+    vat_mode: document.getElementById('vat-mode').value,
+    wht_amount: document.getElementById('wht').value,
+    items: items.map(function (it) {
+      return {
+        product_id: it.product_id,
+        description: it.description,
+        width_m: it.width_m,
+        height_m: it.height_m,
+        qty: it.qty,
+        unit_price: it.unit_price,
+        extra_charge: it.extra_charge,
+        extra_note: it.note
+      };
+    })
+  };
+  var res = await api('updateOrder', payload);
+  if (!res || !res.ok) { toast((res && res.message) || 'แก้ไขไม่สำเร็จ', 'error'); return; }
+  APP.EDITING_ORDER = null;
+  toast('แก้ไขใบสั่งจ้าง ' + (res.data ? res.data.doc_no : '') + ' สำเร็จ', 'success');
+  setTimeout(function () { navigate('orders'); }, 500);
+}
+
 function getItems() {
+  return ORDER_ITEMS;
+}
   return ORDER_ITEMS;
 }
 
@@ -911,12 +1070,34 @@ ROUTES.billing = function () {
     showPage(
       '<div class="card"><h2>วางบิล / ออกเอกสาร</h2>' +
       '<p class="muted" style="margin-bottom:12px">เลือกรายการเพื่อออกใบส่งของ (DO) ใบวางบิล (BN) ใบเสร็จ (RC) / ใบกำกับภาษี และพิมพ์เอกสาร</p>' +
+      '<div class="filter-bar">' +
+        '<div class="form-group" style="flex:1;min-width:200px"><label>ค้นหา</label><input id="bill-kw" placeholder="เลขที่ / ชื่อลูกค้า"></div>' +
+        '<div class="form-group"><button class="btn btn-primary" onclick="filterBilling()">ค้นหา</button></div>' +
+      '</div>' +
       '<div class="table-wrap"><table class="data"><thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>วันที่</th><th>ยอดรวม</th><th>คงค้าง</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody>' +
       (rows || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">ยังไม่มีรายการที่พร้อมวางบิล</td></tr>') +
       '</tbody></table></div></div>'
     );
+    document.getElementById('bill-kw').addEventListener('keydown', function (e) { if (e.key === 'Enter') filterBilling(); });
   });
 };
+
+async function filterBilling() {
+  var kw = document.getElementById('bill-kw').value.trim();
+  var payload = {};
+  if (kw) payload.keyword = kw;
+  var res = await api('listOrders', payload);
+  var orders = (res && res.ok) ? res.data : [];
+  var eligible = orders.filter(function (o) {
+    return ['DELIVERED','CONFIRMED','IN_PRODUCTION','BILLED','PARTIAL_PAID','QUOTED'].indexOf(o.status) >= 0 && o.status !== 'CANCELLED';
+  });
+  var rows = eligible.map(function (o) {
+    return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + esc(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td>' +
+      '<td><button class="btn btn-secondary btn-sm" onclick="openBillingOrder(\'' + esc(o.id) + '\')">จัดการเอกสาร</button></td></tr>';
+  }).join('');
+  var tbody = document.querySelector('#page table tbody');
+  if (tbody) tbody.innerHTML = rows || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">ไม่พบรายการ</td></tr>';
+}
 
 function hasReceipt(docs) {
   return docs.some(function (d) { return ['RECEIPT','TAX_INVOICE'].indexOf(d.doc_type) >= 0 && d.status === 'ACTIVE'; });
@@ -1037,7 +1218,11 @@ function renderPrint(doc) {
     '@media print { .btnp { display: none; } }' +
     '</style></head><body>' +
     '<button class="btnp" onclick="window.print()">🖨️ พิมพ์เอกสาร</button>' + wm +
-    '<div class="hdr"><div><div class="title">' + typeName + '</div><div>ร้านไวนิล</div></div><div style="text-align:right"><strong>' + esc(doc.doc_no) + '</strong><br>' + esc(doc.issue_date || '') + '</div></div>' +
+    '<div class="hdr"><div><div class="title">' + typeName + '</div><div>' + esc(APP.settings.shopName || 'ร้านไวนิล') + '</div>' +
+    (APP.settings.shopAddress ? '<div style="font-size:12px">' + esc(APP.settings.shopAddress) + '</div>' : '') +
+    (APP.settings.shopPhone ? '<div style="font-size:12px">โทร: ' + esc(APP.settings.shopPhone) + '</div>' : '') +
+    (APP.settings.shopTaxId ? '<div style="font-size:12px">เลขผู้เสียภาษี: ' + esc(APP.settings.shopTaxId) + '</div>' : '') +
+    '</div><div style="text-align:right"><strong>' + esc(doc.doc_no) + '</strong><br>' + esc(doc.issue_date || '') + '</div></div>' +
     '<p><strong>ลูกค้า:</strong> ' + esc(order.customer_name || '') + '</p>' +
     '<table><thead><tr><th>#</th><th>รายการ</th><th>จำนวน</th><th>พื้นที่</th><th>ราคา</th><th>รวม</th></tr></thead><tbody>' + rows + '</tbody></table>' +
     '<div class="tot">' +
@@ -1047,6 +1232,7 @@ function renderPrint(doc) {
       '<p><strong>สุทธิ: ฿' + fmtMoney(doc.total_amount != null ? doc.total_amount : order.grand_total) + '</strong></p>' +
     '</div>' +
     '<p style="margin-top:12px"><strong>กำหนดชำระ:</strong> ' + esc(doc.due_date || order.due_date || '') + '</p>' +
+    (APP.settings.signatoryName ? '<div style="margin-top:40px;text-align:right;padding-right:40px"><div style="border-top:1px solid #000;width:200px;display:inline-block;padding-top:4px">' + esc(APP.settings.signatoryName) + '</div></div>' : '') +
     '</body></html>';
 
   var w = window.open('', '_blank');
@@ -1123,6 +1309,143 @@ async function submitPayment() {
   loadDueOrders();
 }
 
+/* ================== CUSTOMERS ================== */
+ROUTES.customers = function () {
+  return mustApi('searchCustomers', {}).then(function (customers) {
+    var rows = customers.map(function (c) {
+      var active = (c.is_active === 'TRUE' || c.is_active === true);
+      var acts = '<button class="btn btn-secondary btn-sm" onclick="editCustomer(\'' + esc(c.id) + '\')">แก้ไข</button> ';
+      if (active) {
+        acts += '<button class="btn btn-danger btn-sm" onclick="suspendCustomer(\'' + esc(c.id) + '\',\'' + esc(c.name) + '\')">ระงับ</button> ';
+      }
+      return '<tr' + (active ? '' : ' style="opacity:.5"') + '>' +
+        '<td>' + esc(c.code) + '</td><td>' + esc(c.name) + '</td><td>' + esc(c.phone) + '</td>' +
+        '<td>' + esc(c.customer_type) + '</td><td>' + esc(c.credit_days) + ' วัน</td>' +
+        '<td>' + (active ? '<span class="badge badge-active">ใช้งาน</span>' : '<span class="badge badge-cancelled">ระงับ</span>') + '</td>' +
+        '<td>' + acts + '</td></tr>';
+    }).join('');
+    showPage(
+      '<div class="card"><h2>จัดการลูกค้า</h2>' +
+      '<div class="filter-bar">' +
+        '<div class="form-group" style="flex:1;min-width:200px"><label>ค้นหา</label><input id="cust-kw" placeholder="ชื่อ / เบอร์ / รหัส / เลขผู้เสียภาษี"></div>' +
+        '<div class="form-group"><button class="btn btn-primary" onclick="filterCustomers()">ค้นหา</button></div>' +
+      '</div>' +
+      '<div class="table-wrap"><table class="data"><thead><tr><th>รหัส</th><th>ชื่อ</th><th>เบอร์</th><th>ประเภท</th><th>เครดิต</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody>' +
+      (rows || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">ยังไม่มีลูกค้า</td></tr>') +
+      '</tbody></table></div></div>'
+    );
+    document.getElementById('cust-kw').addEventListener('keydown', function (e) { if (e.key === 'Enter') filterCustomers(); });
+  });
+};
+
+async function filterCustomers() {
+  var kw = document.getElementById('cust-kw').value.trim();
+  var res = await api('searchCustomers', { keyword: kw });
+  var customers = (res && res.ok) ? res.data : [];
+  var rows = customers.map(function (c) {
+    var active = (c.is_active === 'TRUE' || c.is_active === true);
+    var acts = '<button class="btn btn-secondary btn-sm" onclick="editCustomer(\'' + esc(c.id) + '\')">แก้ไข</button> ';
+    if (active) {
+      acts += '<button class="btn btn-danger btn-sm" onclick="suspendCustomer(\'' + esc(c.id) + '\',\'' + esc(c.name) + '\')">ระงับ</button> ';
+    }
+    return '<tr' + (active ? '' : ' style="opacity:.5"') + '>' +
+      '<td>' + esc(c.code) + '</td><td>' + esc(c.name) + '</td><td>' + esc(c.phone) + '</td>' +
+      '<td>' + esc(c.customer_type) + '</td><td>' + esc(c.credit_days) + ' วัน</td>' +
+      '<td>' + (active ? '<span class="badge badge-active">ใช้งาน</span>' : '<span class="badge badge-cancelled">ระงับ</span>') + '</td>' +
+      '<td>' + acts + '</td></tr>';
+  }).join('');
+  var tbody = document.querySelector('#page table tbody');
+  if (tbody) tbody.innerHTML = rows || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">ไม่พบลูกค้า</td></tr>';
+}
+
+async function editCustomer(id) {
+  var res = await api('searchCustomers', { keyword: '' });
+  var cust = ((res && res.data) || []).filter(function (c) { return c.id === id; })[0];
+  if (!cust) { toast('ไม่พบลูกค้า', 'error'); return; }
+  Swal.fire({
+    title: 'แก้ไขลูกค้า ' + esc(cust.code),
+    html:
+      '<div style="text-align:left">' +
+      '<div class="form-group"><label>ชื่อลูกค้า *</label><input id="ec-name" value="' + esc(cust.name) + '"></div>' +
+      '<div class="grid grid-2">' +
+        '<div class="form-group"><label>ประเภท</label><select id="ec-type"><option value="RETAIL"' + (cust.customer_type === 'RETAIL' ? ' selected' : '') + '>ขายปลีก</option><option value="WHOLESALE"' + (cust.customer_type === 'WHOLESALE' ? ' selected' : '') + '>ขายส่ง</option></select></div>' +
+        '<div class="form-group"><label>เครดิต (วัน)</label><input id="ec-credit" type="number" value="' + (cust.credit_days || 0) + '"></div>' +
+      '</div>' +
+      '<div class="grid grid-2">' +
+        '<div class="form-group"><label>เบอร์โทร</label><input id="ec-phone" value="' + esc(cust.phone || '') + '"></div>' +
+        '<div class="form-group"><label>เลขผู้เสียภาษี</label><input id="ec-tax" value="' + esc(cust.tax_id || '') + '"></div>' +
+      '</div>' +
+      '<div class="form-group"><label>ที่อยู่</label><input id="ec-addr" value="' + esc(cust.address || '') + '"></div>' +
+      '</div>',
+    showCancelButton: true,
+    confirmButtonText: 'บันทึก',
+    confirmButtonColor: '#2563eb',
+    preConfirm: async function () {
+      var name = document.getElementById('ec-name').value.trim();
+      if (!name) { Swal.showValidationMessage('กรุณากรอกชื่อลูกค้า'); return false; }
+      var payload = {
+        id: id,
+        name: name,
+        customer_type: document.getElementById('ec-type').value,
+        phone: document.getElementById('ec-phone').value,
+        tax_id: document.getElementById('ec-tax').value,
+        credit_days: document.getElementById('ec-credit').value,
+        address: document.getElementById('ec-addr').value
+      };
+      var r = await api('updateCustomer', payload);
+      if (!r || !r.ok) { Swal.showValidationMessage((r && r.message) || 'แก้ไขไม่สำเร็จ'); return false; }
+      return true;
+    }
+  }).then(function (result) {
+    if (result.isConfirmed) {
+      toast('แก้ไขลูกค้าสำเร็จ', 'success');
+      APP.customers = (await api('searchCustomers', { keyword: '' })).data || [];
+      navigate('customers');
+    }
+  });
+}
+
+function suspendCustomer(id, name) {
+  Swal.fire({
+    title: 'ระงับลูกค้า ' + name,
+    input: 'textarea',
+    inputLabel: 'เหตุผลการระงับ (ขั้นต่ำ 10 ตัวอักษร)',
+    inputPlaceholder: 'ระบุเหตุผล...',
+    inputValidator: function (value) { if (!value || value.trim().length < 10) return 'เหตุผลต้องยาวอย่างน้อย 10 ตัวอักษร'; },
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยันระงับ',
+    confirmButtonColor: '#dc2626'
+  }).then(function (result) {
+    if (result.isConfirmed) {
+      api('updateCustomer', { id: id, is_active: 'FALSE' }).then(function (res) {
+        if (res && res.ok) { toast('ระงับลูกค้าสำเร็จ', 'success'); navigate('customers'); }
+        else toast((res && res.message) || 'ระงับไม่สำเร็จ', 'error');
+      });
+    }
+  });
+}
+
+function deleteCustomerPrompt(id, name) {
+  Swal.fire({
+    title: 'ลบลูกค้า ' + name,
+    text: 'การดำเนินการนี้จะปิดการใช้งานลูกค้า (ไม่ลบข้อมูล)',
+    input: 'textarea',
+    inputLabel: 'เหตุผลการลบ (ขั้นต่ำ 10 ตัวอักษร)',
+    inputPlaceholder: 'ระบุเหตุผล...',
+    inputValidator: function (value) { if (!value || value.trim().length < 10) return 'เหตุผลต้องยาวอย่างน้อย 10 ตัวอักษร'; },
+    showCancelButton: true,
+    confirmButtonText: 'ยืนยันลบ',
+    confirmButtonColor: '#dc2626'
+  }).then(function (result) {
+    if (result.isConfirmed) {
+      api('deleteCustomer', { id: id, reason: result.value.trim() }).then(function (res) {
+        if (res && res.ok) { toast('ลบลูกค้าสำเร็จ', 'success'); navigate('customers'); }
+        else toast((res && res.message) || 'ลบไม่สำเร็จ', 'error');
+      });
+    }
+  });
+}
+
 /* ================== AUDIT ================== */
 ROUTES.audit = function () {
   showPage(
@@ -1175,14 +1498,12 @@ async function loadAuditLogs() {
 /* ================== SETTINGS ================== */
 ROUTES.settings = function () {
   return Promise.all([
-    api('searchCustomers', { key: '' }),
+    api('getSettings', {}),
     api('listUsers', {})
   ]).then(function (res) {
-    var customers = (res[0] && res[0].data) || [];
-    var users = (res[1] && res[1].data) || [];
-    var custRows = customers.map(function (c) {
-      return '<tr><td>' + esc(c.code) + '</td><td>' + esc(c.name) + '</td><td>' + esc(c.phone) + '</td><td>' + esc(c.customer_type) + '</td><td>' + esc(c.credit_days) + '</td></tr>';
-    }).join('');
+    var settings = (res[0] && res[0].ok) ? res[0].data : {};
+    var users = (res[1] && res[1].ok) ? res[1].data : [];
+    APP.settings = settings;
     var userRows = users.map(function (u) {
       return '<tr><td>' + esc(u.email) + '</td><td>' + esc(u.name) + '</td><td>' + esc(u.role) + '</td><td>' + (u.is_active === 'TRUE' || u.is_active === true ? 'ใช้งาน' : 'ปิด') + '</td><td>' + (u.has_password ? 'มี' : 'ไม่มี') + '</td></tr>';
     }).join('');
@@ -1201,9 +1522,43 @@ ROUTES.settings = function () {
       '</div>'
       : '';
 
+    var shopForm = roleAtLeast('ADMIN')
+      ? '<div class="card"><h3>ข้อมูลร้านค้า</h3>' +
+        '<div class="grid grid-2">' +
+          '<div class="form-group"><label>ชื่อร้าน</label><input id="s-shopName" value="' + esc(settings.shopName || '') + '"></div>' +
+          '<div class="form-group"><label>โลโก้ (URL)</label><input id="s-logoUrl" value="' + esc(settings.logoUrl || '') + '" placeholder="https://..."></div>' +
+          '<div class="form-group" style="grid-column:1/-1"><label>ที่อยู่</label><input id="s-shopAddress" value="' + esc(settings.shopAddress || '') + '"></div>' +
+          '<div class="form-group"><label>เบอร์โทร</label><input id="s-shopPhone" value="' + esc(settings.shopPhone || '') + '"></div>' +
+          '<div class="form-group"><label>อีเมล</label><input id="s-shopEmail" value="' + esc(settings.shopEmail || '') + '"></div>' +
+          '<div class="form-group"><label>เลขผู้เสียภาษี</label><input id="s-shopTaxId" value="' + esc(settings.shopTaxId || '') + '"></div>' +
+        '</div>' +
+        '<div class="grid grid-2" style="margin-top:8px">' +
+          '<div class="form-group"><label>ชื่อผู้จัดการ</label><input id="s-managerName" value="' + esc(settings.managerName || '') + '"></div>' +
+          '<div class="form-group"><label>ชื่อผู้ลงนาม</label><input id="s-signatoryName" value="' + esc(settings.signatoryName || '') + '"></div>' +
+        '</div>' +
+        '<button class="btn btn-primary" onclick="saveShopSettings()">บันทึกข้อมูลร้านค้า</button>' +
+      '</div>'
+      : '<div class="card"><h3>ข้อมูลร้านค้า</h3><p class="muted">ต้องมีสิทธิ์ ADMIN เพื่อแก้ไข</p></div>';
+
+    var systemSettings = roleAtLeast('ADMIN')
+      ? '<div class="card"><h3>การตั้งค่าระบบ</h3>' +
+        '<div class="grid grid-3">' +
+          '<div class="form-group"><label>อัตราภาษี (%)</label><input id="s-vatRate" type="number" value="' + esc(settings.vatRate || '7') + '"></div>' +
+          '<div class="form-group"><label>วันเรียกเก็บ (IV Claim Days)</label><input id="s-ivClaimDays" type="number" value="' + esc(settings.ivClaimDays || '0') + '"></div>' +
+          '<div class="form-group"><label>โหมดงบประมาณ</label><select id="s-fiscalMode"><option value="NONE"' + (settings.fiscalMode === 'NONE' ? ' selected' : '') + '>ไม่ใช้</option><option value="CUSTOM"' + (settings.fiscalMode === 'CUSTOM' ? ' selected' : '') + '>กำหนดเอง</option></select></div>' +
+          '<div class="form-group"><label>เดือนเริ่มต้นงบประมาณ</label><input id="s-fiscalStartMonth" type="number" min="1" max="12" value="' + esc(settings.fiscalStartMonth || '1') + '"></div>' +
+          '<div class="form-group"><label>วันเริ่มต้นงบประมาณ</label><input id="s-fiscalStartDay" type="number" min="1" max="31" value="' + esc(settings.fiscalStartDay || '1') + '"></div>' +
+          '<div class="form-group"><label>ชื่อโฟลเดอร์ PDF</label><input id="s-pdfFolderName" value="' + esc(settings.pdfFolderName || '') + '"></div>' +
+        '</div>' +
+        '<button class="btn btn-primary" onclick="saveSystemSettings()">บันทึกการตั้งค่าระบบ</button>' +
+      '</div>'
+      : '';
+
     showPage(
-      '<div class="card"><h2>ตั้งค่า</h2>' +
-      '<h3>สร้างลูกค้าใหม่</h3>' +
+      shopForm +
+      adminExtra +
+      systemSettings +
+      '<div class="card"><h3>สร้างลูกค้าใหม่</h3>' +
       '<div class="grid grid-2">' +
         '<div class="form-group"><label>ชื่อลูกค้า *</label><input id="nc-name"></div>' +
         '<div class="form-group"><label>ประเภท</label><select id="nc-type"><option value="RETAIL">ขายปลีก</option><option value="WHOLESALE">ขายส่ง</option></select></div>' +
@@ -1214,16 +1569,47 @@ ROUTES.settings = function () {
       '</div>' +
       '<button class="btn btn-primary" onclick="saveNewCustomer()">บันทึกลูกค้า</button>' +
       '</div>' +
-      '<div class="card"><h3>ลูกค้าในระบบ</h3><div class="table-wrap"><table class="data"><thead><tr><th>รหัส</th><th>ชื่อ</th><th>โทร</th><th>ประเภท</th><th>เครดิต</th></tr></thead><tbody>' + (custRows || '<tr><td colspan="5" class="muted">ไม่มีลูกค้า</td></tr>') + '</tbody></table></div></div>' +
-      adminExtra +
       '<div class="card"><h3>อื่นๆ</h3>' +
       '<button class="btn btn-secondary" onclick="manualBackup()">💰 สำรองข้อมูลตอนนี้ (Backup)</button> ' +
-      (roleAtLeast('ADMIN') ? '<button class="btn btn-secondary" onclick="setupSystem()">⚙️ รัน Setup (สร้างชีต)</button>' : '') +
+      (roleAtLeast('ADMIN') ? '<button class="btn btn-secondary" onclick="setupSystem()">⚙️ รัน Setup (สร้างชีต)</button> ' : '') +
       '<button class="btn btn-secondary" onclick="changeMyPassword()">🔑 เปลี่ยนรหัสผ่าน</button>' +
       '</div>'
     );
   });
 };
+
+async function saveShopSettings() {
+  var payload = {
+    shopName: document.getElementById('s-shopName').value,
+    logoUrl: document.getElementById('s-logoUrl').value,
+    shopAddress: document.getElementById('s-shopAddress').value,
+    shopPhone: document.getElementById('s-shopPhone').value,
+    shopEmail: document.getElementById('s-shopEmail').value,
+    shopTaxId: document.getElementById('s-shopTaxId').value,
+    managerName: document.getElementById('s-managerName').value,
+    signatoryName: document.getElementById('s-signatoryName').value
+  };
+  var res = await api('saveSettings', payload);
+  if (!res || !res.ok) { toast((res && res.message) || 'บันทึกไม่สำเร็จ', 'error'); return; }
+  APP.settings = res.data;
+  toast('บันทึกข้อมูลร้านค้าสำเร็จ', 'success');
+  buildShell();
+}
+
+async function saveSystemSettings() {
+  var payload = {
+    vatRate: document.getElementById('s-vatRate').value,
+    ivClaimDays: document.getElementById('s-ivClaimDays').value,
+    fiscalMode: document.getElementById('s-fiscalMode').value,
+    fiscalStartMonth: document.getElementById('s-fiscalStartMonth').value,
+    fiscalStartDay: document.getElementById('s-fiscalStartDay').value,
+    pdfFolderName: document.getElementById('s-pdfFolderName').value
+  };
+  var res = await api('saveSettings', payload);
+  if (!res || !res.ok) { toast((res && res.message) || 'บันทึกไม่สำเร็จ', 'error'); return; }
+  APP.settings = res.data;
+  toast('บันทึกการตั้งค่าระบบสำเร็จ', 'success');
+}
 
 async function saveNewCustomer() {
   var name = document.getElementById('nc-name').value.trim();

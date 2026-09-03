@@ -47,6 +47,11 @@ var ACTION_MAP = {
   'searchCustomers': customer_searchCustomers,
   'createCustomer': customer_createCustomer,
   'updateCustomer': customer_updateCustomer,
+  'deleteCustomer': customer_deleteCustomer,
+
+  // settings
+  'getSettings': getSettings,
+  'saveSettings': saveSettings,
 
   // order
   'createOrder': order_createOrder,
@@ -86,6 +91,9 @@ function customer_searchCustomers(payload) { return searchCustomers(payload && p
 function customer_createCustomer(payload) { return createCustomer(payload); }
 function customer_updateCustomer(payload) {
   return updateCustomer(payload && payload.id, payload);
+}
+function customer_deleteCustomer(payload) {
+  return deleteCustomer(payload && payload.id, payload && payload.reason);
 }
 
 function order_createOrder(payload) { return createOrder(payload); }
