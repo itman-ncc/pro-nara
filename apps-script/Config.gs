@@ -14,6 +14,12 @@ var AUDIT_SS_ID = PropertiesService.getScriptProperties().getProperty('AUDIT_SS_
 // Folder ID สำหรับสำรองข้อมูล (key: BACKUP_FOLDER_ID) — ใช้ค่า default จาก AGENTS.md
 var BACKUP_FOLDER_ID = PropertiesService.getScriptProperties().getProperty('BACKUP_FOLDER_ID') || '1Sg1AN_Rc6wcB2q7Ry9tAzjw1vjwviF7D';
 
+// ===== per-request cache (ตัวแปร module ถูกสร้างใหม่ทุก HTTP request จึงปลอดภัย) =====
+var _SS_MAIN = null;        // cache Spreadsheet หลัก
+var _AUDIT_SS_CACHE = null; // cache Spreadsheet AuditLog
+var _SHEET_CACHE = {};      // cache { sheetName: Sheet } สำหรับชีตหลัก
+var _AUDIT_SHEET_CACHE = {};// cache { sheetName: Sheet } สำหรับชีต AuditLog
+
 /**
  * object SH เก็บชื่อชีตทั้งหมดที่ใช้ในระบบ
  * - ชีตที่อยู่ในไฟล์หลัก (SS_ID) ใช้รายชื่อตามข้อ 4 ของ AGENTS.md
@@ -157,7 +163,8 @@ function nowIso_() {
  * @returns {SpreadsheetApp.Spreadsheet}
  */
 function ss_() {
-  return SpreadsheetApp.openById(SS_ID);
+  if (!_SS_MAIN) _SS_MAIN = SpreadsheetApp.openById(SS_ID);
+  return _SS_MAIN;
 }
 
 /**
@@ -165,7 +172,8 @@ function ss_() {
  * @returns {SpreadsheetApp.Spreadsheet}
  */
 function auditSS_() {
-  return SpreadsheetApp.openById(AUDIT_SS_ID);
+  if (!_AUDIT_SS_CACHE) _AUDIT_SS_CACHE = SpreadsheetApp.openById(AUDIT_SS_ID);
+  return _AUDIT_SS_CACHE;
 }
 
 /**
@@ -174,9 +182,12 @@ function auditSS_() {
  * @returns {Sheet}
  */
 function sh_(name) {
-  var sh = ss_().getSheetByName(name);
-  if (!sh) throw new Error('ไม่พบชีต: ' + name);
-  return sh;
+  if (!_SHEET_CACHE[name]) {
+    var s = ss_().getSheetByName(name);
+    if (!s) throw new Error('ไม่พบชีต: ' + name);
+    _SHEET_CACHE[name] = s;
+  }
+  return _SHEET_CACHE[name];
 }
 
 /**

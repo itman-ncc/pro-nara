@@ -9,6 +9,10 @@
 
 var HEADER_CACHE_TTL = 300; // วินาที
 
+// per-request cache สำหรับ readAll_() — อ่านซ้ำใน request เดียวกันไม่ต้องอ่านชีตใหม่
+// ตัวแปร module ถูกสร้างใหม่ทุก HTTP request จึงปลอดภัย
+var _READ_ALL_CACHE = {};
+
 /**
  * อ่าน header ของชีต (พร้อม cache 300 วินาที)
  * @param {string} sheetName ชื่อชีต
@@ -44,22 +48,34 @@ function readHeaders_(sheetName) {
  * @returns {Array<Object>} array ของ object (แถวข้อมูล ไม่รวม header)
  */
 function readAll_(sheetName) {
+  if (_READ_ALL_CACHE[sheetName]) return _READ_ALL_CACHE[sheetName];
+
   var sh = sh_(sheetName);
   var lastRow = sh.getLastRow();
-  if (lastRow < 2) return [];
+  if (lastRow < 2) { _READ_ALL_CACHE[sheetName] = []; return []; }
 
   var headers = readHeaders_(sheetName);
   var data = sh.getRange(2, 1, lastRow - 1, sh.getLastColumn()).getValues();
 
   var rows = [];
   for (var i = 0; i < data.length; i++) {
-    var obj = { _row: i + 2 }; // แนบเลขแถวจริง (เริ่มที่ 2 เพราะแถว 1 คือ header)
+    var obj = { _row: i + 2 };
     for (var j = 0; j < headers.length; j++) {
       obj[headers[j]] = data[i][j];
     }
     rows.push(obj);
   }
+  _READ_ALL_CACHE[sheetName] = rows;
   return rows;
+}
+
+/**
+ * ล้าง per-request cache ของ readAll_() — เรียกหลังเขียนข้อมูลเพื่อกัน stale
+ * @param {string} [sheetName] ชื่อชีตที่ต้องการล้าง (ละเว้น = ล้างทั้งหมด)
+ */
+function flushReadCache_(sheetName) {
+  if (sheetName) { delete _READ_ALL_CACHE[sheetName]; }
+  else { _READ_ALL_CACHE = {}; }
 }
 
 /**
@@ -109,6 +125,7 @@ function insertRow_(sheetName, obj) {
   }
 
   sh_(sheetName).appendRow(values);
+  flushReadCache_(sheetName);
   return obj.id;
 }
 
@@ -136,6 +153,7 @@ function updateRow_(sheetName, rowNum, patchObj) {
 
   // เขียนกลับทั้งแถวแบบ batch (setValues ครั้งเดียว)
   sh.getRange(rowNum, 1, 1, headers.length).setValues([row]);
+  flushReadCache_(sheetName);
 }
 
 // =========================================================================

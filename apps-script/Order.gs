@@ -6,13 +6,28 @@
  * line_total = area_sqm × qty × unit_price + extra_charge
  */
 
+// per-request cache ของข้อมูล Products — อ่านครั้งเดียวต่อ request เพื่อกัน N+1
+// (ตัวแปร module ถูกสร้างใหม่ทุก HTTP request จึงปลอดภัย)
+var _PRODUCTS_BY_ID = null;
+function productsById_() {
+  if (!_PRODUCTS_BY_ID) {
+    _PRODUCTS_BY_ID = {};
+    var rows = repoRows_(SH.PRODUCTS, false);
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].id) _PRODUCTS_BY_ID[String(rows[i].id)] = rows[i];
+    }
+  }
+  return _PRODUCTS_BY_ID;
+}
+
+
 /**
  * คำนวณพื้นที่ของรายการเดียว
  * @param {Object} item { product_id, width_m, height_m, qty }
  * @returns {number} area_sqm
  */
 function calcAreaSqm_(item) {
-  var prod = item.product_id ? repoFindById_('Products', item.product_id, false) : null;
+  var prod = item.product_id ? productsById_()[String(item.product_id)] : null;
   var minArea = prod ? Number(prod.min_area_sqm || 0) : 0;
   var width = Number(item.width_m || 0);
   var height = Number(item.height_m || 0);
@@ -131,7 +146,7 @@ function createOrder(payload) {
  * เตรียมรายการเดียวให้พร้อมเก็บ (คำนวณ area + line_total)
  */
 function prepareOrderItem_(item, saleMode, lineNo) {
-  var prod = item.product_id ? repoFindById_('Products', item.product_id, false) : null;
+  var prod = item.product_id ? productsById_()[String(item.product_id)] : null;
   var areaSqm = calcAreaSqm_({ product_id: item.product_id, width_m: item.width_m, height_m: item.height_m });
 
   // unit_price: ดึงจาก sale_mode แต่แก้ไขรายรายการได้
