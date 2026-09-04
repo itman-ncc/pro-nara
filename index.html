@@ -364,11 +364,19 @@ var ROUTES = {};
 /* ================== APP SHELL ================== */
 function buildShell() {
   var app = document.getElementById('app');
-  var shopLabel = APP.settings.shopName ? esc(APP.settings.shopName) : 'ระบบวางบิลร้านไวนิล';
-  var shopSub = APP.settings.shopPhone ? ' | ' + esc(APP.settings.shopPhone) : '';
+  var s = APP.settings || {};
+  var brandParts = [];
+  brandParts.push((s.logoUrl ? '<img src="' + esc(s.logoUrl) + '" style="height:32px;border-radius:4px">' : '📐'));
+  brandParts.push('<span style="color:var(--primary);font-weight:700">' + esc(s.shopName || 'ระบบวางบิลร้านไวนิล') + '</span>');
+  var subParts = [];
+  if (s.shopAddress) subParts.push(esc(s.shopAddress));
+  if (s.shopPhone) subParts.push('โทร: ' + esc(s.shopPhone));
+  if (s.shopTaxId) subParts.push('เลขผู้เสียภาษี: ' + esc(s.shopTaxId));
+  var brandSub = subParts.length ? '<div style="font-size:12px;font-weight:400;color:var(--text-muted);margin-top:2px">' + subParts.join(' &nbsp;|&nbsp; ') + '</div>' : '';
+
   app.innerHTML =
     '<header class="app-header">' +
-      '<div class="brand">' + (APP.settings.logoUrl ? '<img src="' + esc(APP.settings.logoUrl) + '" style="height:28px;border-radius:4px">' : '📐') + ' ' + shopLabel + '<span style="font-size:12px;font-weight:400;color:var(--text-muted)">' + shopSub + '</span></div>' +
+      '<div class="brand"><div>' + brandParts.join(' ') + brandSub + '</div></div>' +
       '<div class="user-chip"><span>' + esc(APP.user.name) + ' (' + (APP.user.role || '') + ')</span><button class="logout" onclick="doLogout()">ออกจากระบบ</button></div>' +
     '</header>' +
     '<nav class="nav">' +
