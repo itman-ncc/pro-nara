@@ -698,6 +698,7 @@ ROUTES['order-form'] = function () {
       '<div class="pos-relative"><input id="cust-search" placeholder="ค้นหาชื่อ / เบอร์โทร..." autocomplete="off">' +
       '<ul id="cust-list" class="autocomplete-list" style="display:none"></ul></div>' +
       '<input type="hidden" id="cust-id">' +
+      '<div id="cust-info" style="display:none;margin-top:8px;padding:10px 14px;background:var(--bg);border-radius:8px;font-size:13px;line-height:1.7;color:var(--text)"></div>' +
     '</div>' +
     '<div class="grid grid-2">' +
       '<div class="form-group"><label>โหมดขาย</label><select id="sale-mode"><option value="RETAIL">ขายปลีก</option><option value="WHOLESALE">ขายส่ง</option></select></div>' +
@@ -740,10 +741,22 @@ function initOrderForm() {
     custList.style.display = 'block';
     custList.querySelectorAll('li').forEach(function (li) {
       li.addEventListener('click', function () {
-        document.getElementById('cust-id').value = this.getAttribute('data-id');
+        var cid = this.getAttribute('data-id');
+        document.getElementById('cust-id').value = cid;
         custSearch.value = this.getAttribute('data-name');
         document.getElementById('sale-mode').value = this.getAttribute('data-type') === 'WHOLESALE' ? 'WHOLESALE' : 'RETAIL';
         custList.style.display = 'none';
+        /* แสดงข้อมูลลูกค้า */
+        var cust = APP.customers.filter(function (c) { return c.id === cid; })[0];
+        var infoEl = document.getElementById('cust-info');
+        if (cust && infoEl) {
+          var parts = [];
+          if (cust.address) parts.push('📍 ' + esc(cust.address));
+          if (cust.phone) parts.push('📞 ' + esc(cust.phone));
+          if (cust.tax_id) parts.push('🏢 เลขผู้เสียภาษี: ' + esc(cust.tax_id));
+          infoEl.innerHTML = parts.join('<br>');
+          infoEl.style.display = parts.length ? 'block' : 'none';
+        }
       });
     });
   });
@@ -944,6 +957,7 @@ async function editOrder(orderId) {
         '<div class="pos-relative"><input id="cust-search" value="' + esc(order.customer_name) + '" placeholder="ค้นหาชื่อ / เบอร์โทร..." autocomplete="off">' +
         '<ul id="cust-list" class="autocomplete-list" style="display:none"></ul></div>' +
         '<input type="hidden" id="cust-id" value="' + esc(order.customer_id) + '">' +
+        '<div id="cust-info" style="display:none;margin-top:8px;padding:10px 14px;background:var(--bg);border-radius:8px;font-size:13px;line-height:1.7;color:var(--text)"></div>' +
       '</div>' +
       '<div class="grid grid-2">' +
         '<div class="form-group"><label>โหมดขาย</label><select id="sale-mode"><option value="RETAIL"' + (order.sale_mode === 'RETAIL' ? ' selected' : '') + '>ขายปลีก</option><option value="WHOLESALE"' + (order.sale_mode === 'WHOLESALE' ? ' selected' : '') + '>ขายส่ง</option></select></div>' +
@@ -978,6 +992,20 @@ async function editOrder(orderId) {
       };
     });
     initOrderForm();
+    /* แสดงข้อมูลลูกค้าเดิมเมื่อแก้ไข */
+    (function () {
+      var cid = document.getElementById('cust-id').value;
+      var cust = APP.customers.filter(function (c) { return c.id === cid; })[0];
+      var infoEl = document.getElementById('cust-info');
+      if (cust && infoEl) {
+        var parts = [];
+        if (cust.address) parts.push('📍 ' + esc(cust.address));
+        if (cust.phone) parts.push('📞 ' + esc(cust.phone));
+        if (cust.tax_id) parts.push('🏢 เลขผู้เสียภาษี: ' + esc(cust.tax_id));
+        infoEl.innerHTML = parts.join('<br>');
+        infoEl.style.display = parts.length ? 'block' : 'none';
+      }
+    })();
     recalc();
   };
   navigate('order-form');
