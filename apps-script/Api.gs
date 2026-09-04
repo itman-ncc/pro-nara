@@ -138,6 +138,8 @@ function getProducts(payload) {
  */
 function getConfig(payload) {
   try {
+    var shop = {};
+    try { shop = getSettings_(); } catch (e) { /* ยังไม่ login ก็ไม่เป็นไร */ }
     return {
       ok: true,
       data: {
@@ -146,7 +148,8 @@ function getConfig(payload) {
         payment_methods: PAYMENT_METHODS,
         vat_modes: VAT_MODES,
         sale_modes: SALE_MODES,
-        roles: ROLES
+        roles: ROLES,
+        shop: shop
       },
       message: ''
     };

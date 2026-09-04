@@ -394,11 +394,18 @@ function showPage(html) {
 
 /* ================== LOGIN ================== */
 function renderLogin() {
+  var s = APP.settings;
+  var shopInfo = '';
+  if (s.shopName) shopInfo += '<h1>' + esc(s.shopName) + '</h1>';
+  if (s.shopAddress) shopInfo += '<div class="sub">' + esc(s.shopAddress) + '</div>';
+  if (s.shopPhone) shopInfo += '<div class="sub">โทร: ' + esc(s.shopPhone) + '</div>';
+  if (s.shopTaxId) shopInfo += '<div class="sub">เลขผู้เสียภาษี: ' + esc(s.shopTaxId) + '</div>';
+  if (!shopInfo) shopInfo = '<h1>📐 ระบบวางบิลร้านไวนิล</h1><div class="sub">เข้าสู่ระบบเพื่อใช้งาน</div>';
+
   document.getElementById('app').innerHTML =
     '<div class="login-wrap"><div class="login-box">' +
-      (APP.settings.logoUrl ? '<div style="text-align:center;margin-bottom:12px"><img src="' + esc(APP.settings.logoUrl) + '" style="max-height:80px;border-radius:8px"></div>' : '') +
-      '<h1>📐 ' + esc(APP.settings.shopName || 'ระบบวางบิลร้านไวนิล') + '</h1>' +
-      '<div class="sub">' + esc(APP.settings.shopAddress || 'เข้าสู่ระบบเพื่อใช้งาน') + '</div>' +
+      (s.logoUrl ? '<div style="text-align:center;margin-bottom:12px"><img src="' + esc(s.logoUrl) + '" style="max-height:80px;border-radius:8px"></div>' : '') +
+      shopInfo +
       '<div class="field"><label>อีเมล</label><input id="lg-email" type="email" placeholder="you@shop.com" autocomplete="username"></div>' +
       '<div class="field"><label>รหัสผ่าน</label>' +
         '<div class="pass-wrap">' +
@@ -1745,6 +1752,12 @@ function changeMyPassword() {
 
 /* ================== INIT ================== */
 (async function init() {
+  /* โหลด config (รวมข้อมูลร้าน) ก่อน — เพื่อแสดงบนหน้า login */
+  try {
+    var cfg = await api('getConfig', {});
+    if (cfg && cfg.ok && cfg.data && cfg.data.shop) APP.settings = cfg.data.shop;
+  } catch (e) { /* ใช้ค่า default */ }
+
   var savedEmail = localStorage.getItem('vn_session');
   if (savedEmail) {
     var res = await api('whoAmI', { email: savedEmail });
