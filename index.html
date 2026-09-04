@@ -512,6 +512,7 @@ async function doLogin() {
   APP.user = res.data;
   APP.loggingOut = false;
   localStorage.setItem('vn_session', email);
+  startSessionTimer_();
   var remCb = document.getElementById('lg-remember');
   if (remCb && remCb.checked) {
     localStorage.setItem('vn_remember', JSON.stringify({ email: email, pass: encPass_(password) }));
@@ -523,10 +524,48 @@ async function doLogin() {
 function doLogout() {
   APP.loggingOut = true;   // กัน request ที่ค้างอยู่ทำให้หน้า login มี error
   APP.user = null;
+  stopSessionTimer_();
   document.getElementById('app').innerHTML =
     '<div class="login-wrap" style="min-height:100vh;display:flex;align-items:center;justify-content:center"><div class="card">กำลังออกจากระบบ...</div></div>';
   localStorage.removeItem('vn_session');
+  localStorage.removeItem('vn_last_activity');
   setTimeout(function () { renderLogin(); }, 150);
+}
+
+/* ================== SESSION TIMEOUT (30 นาที) ================== */
+var SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 นาที
+var SESSION_CHECK_MS = 60 * 1000;        // เช็คทุก 60 วินาที
+var _sessionTimer = null;
+var _activityBound = false;
+
+function touchActivity_() {
+  localStorage.setItem('vn_last_activity', String(Date.now()));
+}
+
+function checkSessionTimeout_() {
+  if (!APP.user) return;
+  var last = Number(localStorage.getItem('vn_last_activity') || 0);
+  if (last && (Date.now() - last) > SESSION_TIMEOUT_MS) {
+    toast('หมดเวลาเข้าสู่ระบบ (ไม่มีกิจกรรม 30 นาที)', 'error');
+    doLogout();
+  }
+}
+
+function startSessionTimer_() {
+  stopSessionTimer_();
+  touchActivity_();
+  if (!_activityBound) {
+    _activityBound = true;
+    var events = ['click','keypress','mousemove','touchstart','scroll'];
+    for (var i = 0; i < events.length; i++) {
+      document.addEventListener(events[i], touchActivity_, { passive: true });
+    }
+  }
+  _sessionTimer = setInterval(checkSessionTimeout_, SESSION_CHECK_MS);
+}
+
+function stopSessionTimer_() {
+  if (_sessionTimer) { clearInterval(_sessionTimer); _sessionTimer = null; }
 }
 
 /* ================== BOOT ================== */
@@ -1712,6 +1751,7 @@ function changeMyPassword() {
     if (res && res.ok && res.data && (res.data.is_active === 'TRUE' || res.data.is_active === true)) {
       APP.user = res.data;
       boot();
+      startSessionTimer_();
       return;
     }
     localStorage.removeItem('vn_session');
