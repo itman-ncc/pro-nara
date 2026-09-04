@@ -343,6 +343,7 @@ async function mustApi(action, payload) {
 /* ================== ROUTER ================== */
 function navigate(route) {
   APP.route = route;
+  if (_dashClockTimer && route !== 'dashboard') { clearInterval(_dashClockTimer); _dashClockTimer = null; }
   var navBtns = document.querySelectorAll('.nav button');
   navBtns.forEach(function (b) { b.classList.remove('active'); });
   var active = document.querySelector('.nav button[data-route="' + route + '"]');
@@ -606,17 +607,35 @@ ROUTES.dashboard = function () {
       '</div>' +
       '<div class="grid grid-2">' +
         '<div class="card"><h2>งานค้างส่ง: <span style="color:var(--danger)">' + d.pending_deliveries + '</span></h2></div>' +
-        '<div class="card"><h2>วันนี้: ' + fmtDateTh(d.today) + '</h2></div>' +
+        '<div class="card" style="text-align:center"><div id="dash-clock" style="font-size:28px;font-weight:700;color:var(--primary)"></div><div id="dash-date" style="font-size:14px;color:var(--text-muted)"></div></div>' +
       '</div>' +
-      '<div class="card"><h2>ใบสั่งจ้างล่าสุด</h2>' +
+      '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2>ใบสั่งจ้างล่าสุด</h2><a href="#" onclick="navigate(\'orders\');return false" style="color:var(--primary);font-weight:600;font-size:13px">ดูทั้งหมด →</a></div>' +
         '<div class="table-wrap"><table class="data"><thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>วันที่</th><th>ยอดรวม</th><th>คงค้าง</th><th>สถานะ</th></tr></thead><tbody>' +
         (d.recent_orders.map(function (o) {
-          return '<tr><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + fmtDateTh(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td></tr>';
+          return '<tr style="cursor:pointer" onclick="openOrderDetail(\'' + esc(o.id) + '\')"><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + fmtDateTh(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td></tr>';
         }).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text-muted)">ไม่มีข้อมูล</td></tr>') +
         '</tbody></table></div></div>'
     );
+    startDashClock_();
   });
 };
+
+var _dashClockTimer = null;
+function startDashClock_() {
+  if (_dashClockTimer) clearInterval(_dashClockTimer);
+  function tick() {
+    var now = new Date();
+    var h = String(now.getHours()).length === 1 ? '0' + now.getHours() : now.getHours();
+    var m = String(now.getMinutes()).length === 1 ? '0' + now.getMinutes() : now.getMinutes();
+    var s = String(now.getSeconds()).length === 1 ? '0' + now.getSeconds() : now.getSeconds();
+    var el = document.getElementById('dash-clock');
+    if (el) el.textContent = h + ':' + m + ':' + s;
+    var dEl = document.getElementById('dash-date');
+    if (dEl) dEl.textContent = fmtDateTh(now.toISOString().slice(0, 10));
+  }
+  tick();
+  _dashClockTimer = setInterval(tick, 1000);
+}
 
 /* ================== ORDERS LIST ================== */
 ROUTES.orders = function () {

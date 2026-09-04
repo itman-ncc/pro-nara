@@ -50,7 +50,7 @@ function getDashboard() {
       if (needDelivery.indexOf(String(o.status)) >= 0) pendingDeliveries++;
     }
 
-    var recentOrders = orders.slice().reverse().slice(0, 10);
+    var recentOrders = orders.slice().reverse().slice(0, 20);
 
     return {
       ok: true,
