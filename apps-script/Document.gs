@@ -11,15 +11,22 @@
  * @param {Array} items รายการ
  */
 function buildSnapshot_(order, items) {
+  /* ดึงข้อมูลลูกค้าเพิ่มเข้า snapshot */
+  var customer = {};
+  try { customer = repoFindById_('Customers', order.customer_id, false) || {}; } catch (e) {}
   return {
     order: {
       id: order.id,
       doc_no: order.doc_no,
       customer_id: order.customer_id,
       customer_name: order.customer_name,
+      customer_address: customer.address || '',
+      customer_phone: customer.phone || '',
+      customer_tax_id: customer.tax_id || '',
       order_date: order.order_date,
       due_date: order.due_date,
       sale_mode: order.sale_mode,
+      credit_days: customer.credit_days || '',
       subtotal: order.subtotal,
       discount_amt: order.discount_amt,
       vat_mode: order.vat_mode,
@@ -28,12 +35,14 @@ function buildSnapshot_(order, items) {
       grand_total: order.grand_total
     },
     items: items.map(function (it) {
+      var prod = it.product_id ? (productsById_()[String(it.product_id)] || {}) : {};
       return {
         line_no: it.line_no,
         description: it.description,
         width_m: it.width_m,
         height_m: it.height_m,
         qty: it.qty,
+        unit: prod.unit || 'ตร.ม.',
         area_sqm: it.area_sqm,
         unit_price: it.unit_price,
         extra_charge: it.extra_charge,
