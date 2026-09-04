@@ -178,6 +178,9 @@
   .autocomplete-list li:hover { background: var(--primary); color: #fff; }
 
   .filter-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
+  .status-chip { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 16px; font-size: 12px; font-weight: 500; border: 1.5px solid var(--border); background: var(--bg); color: var(--text-secondary); cursor: pointer; transition: all .15s; white-space: nowrap; }
+  .status-chip:hover { border-color: var(--primary); color: var(--primary); }
+  .status-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
   .total-box { background: var(--bg); border-radius: 8px; padding: 12px 16px; font-size: 16px; }
 
   .items-tbl { width: 100%; font-size: 13px; }
@@ -646,58 +649,103 @@ function startDashClock_() {
 }
 
 /* ================== ORDERS LIST ================== */
+var _ordStatusFilter = '';
+var _ordPage = 1;
+var _ordPerPage = 20;
+var _ordFiltered = [];
+
 ROUTES.orders = function () {
+  _ordPage = 1;
+  _ordPerPage = 20;
   return mustApi('listOrders', {}).then(function (orders) {
-    var rows = orders.map(function (o) {
-      var acts = '<button class="btn btn-secondary btn-sm" onclick="openOrderDetail(\'' + esc(o.id) + '\')">ดู</button> ';
-      if (o.status !== 'CANCELLED' && o.status !== 'PAID') {
-        if (o.status !== 'DELIVERED' && o.status !== 'BILLED' && o.status !== 'PARTIAL_PAID') {
-          acts += '<button class="btn btn-secondary btn-sm" onclick="editOrder(\'' + esc(o.id) + '\')">แก้ไข</button> ';
-        }
-        acts += '<button class="btn btn-primary btn-sm" onclick="openBillingOrder(\'' + esc(o.id) + '\')">ออกเอกสาร</button> ';
-        acts += '<button class="btn btn-danger btn-sm" onclick="cancelOrderPrompt(\'' + esc(o.id) + '\')">ยกเลิก</button>';
-      } else if (o.status === 'PAID') {
-        acts += '<button class="btn btn-success btn-sm" onclick="openBillingOrder(\'' + esc(o.id) + '\')">ใบเสร็จ</button> ';
-      }
-      return '<tr>' +
-        '<td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + fmtDateTh(o.order_date) + '</td>' +
-        '<td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td>' +
-        '<td style="white-space:normal">' + acts + '</td></tr>';
-    }).join('');
-    var statusOpts = '<option value="">ทั้งหมด</option>';
-    ['DRAFT','QUOTED','CONFIRMED','IN_PRODUCTION','DELIVERED','BILLED','PARTIAL_PAID','PAID','CANCELLED'].forEach(function (s) {
-      statusOpts += '<option value="' + s + '">' + badgeFor(s).replace(/<[^>]*>/g, '') + '</option>';
-    });
+    APP._allOrders = orders;
+    _ordFiltered = orders;
     showPage(
-      '<div class="card"><h2>รายการใบสั่งจ้าง <button class="btn btn-primary" onclick="navigate(\'order-form\')">+ สร้างใหม่</button></h2>' +
-      '<div class="filter-bar">' +
-        '<div class="form-group" style="flex:1;min-width:180px"><label>ค้นหา</label><input id="ord-kw" placeholder="เลขที่ / ชื่อลูกค้า"></div>' +
-        '<div class="form-group" style="min-width:140px"><label>สถานะ</label><select id="ord-status">' + statusOpts + '</select></div>' +
-        '<div class="form-group" style="min-width:130px"><label>จากวันที่</label><input id="ord-from" type="date"></div>' +
-        '<div class="form-group" style="min-width:130px"><label>ถึงวันที่</label><input id="ord-to" type="date"></div>' +
-        '<div class="form-group"><button class="btn btn-primary" onclick="filterOrders()">ค้นหา</button></div>' +
-      '</div>' +
-      '<div class="table-wrap"><table class="data"><thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>วันที่</th><th>ยอดรวม</th><th>คงค้าง</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody>' +
-      (rows || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">ยังไม่มีใบสั่งจ้าง</td></tr>') +
-      '</tbody></table></div></div>'
+      '<div class="card">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
+          '<h2 style="margin:0">รายการใบสั่งจ้าง <button class="btn btn-primary" onclick="navigate(\'order-form\')">+ สร้างใหม่</button></h2>' +
+          '<div style="display:flex;align-items:center;gap:12px">' +
+            '<span id="ord-count" style="font-size:13px;color:var(--text-muted)"></span>' +
+            '<div style="display:flex;align-items:center;gap:4px"><label style="font-size:12px;color:var(--text-muted);white-space:nowrap">แสดง</label>' +
+              '<select id="ord-perpage" onchange="changeOrdPerPage_(this.value)" style="padding:4px 6px;border:1px solid var(--border);border-radius:6px;font-size:12px;background:var(--bg);color:var(--text)">' +
+                '<option value="10">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option><option value="0">ทั้งหมด</option>' +
+              '</select></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="filter-bar">' +
+          '<div class="form-group" style="flex:2;min-width:200px"><label>ค้นหา</label>' +
+            '<div style="position:relative"><input id="ord-kw" placeholder="เลขที่ / ชื่อลูกค้า..." style="padding-left:28px">' +
+            '<span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:13px">🔍</span></div></div>' +
+          '<div class="form-group" style="flex:3;min-width:280px"><label>สถานะ</label>' +
+            '<div id="ord-status-chips" style="display:flex;gap:4px;flex-wrap:wrap">' +
+              '<span class="status-chip active" data-val="" onclick="clickOrdStatusChip_(this)">ทั้งหมด</span>' +
+              '<span class="status-chip" data-val="DRAFT" onclick="clickOrdStatusChip_(this)">📝 ร่าง</span>' +
+              '<span class="status-chip" data-val="QUOTED" onclick="clickOrdStatusChip_(this)">📋 ส่งใบเสนอราคา</span>' +
+              '<span class="status-chip" data-val="CONFIRMED" onclick="clickOrdStatusChip_(this)">✅ ยืนยัน</span>' +
+              '<span class="status-chip" data-val="IN_PRODUCTION" onclick="clickOrdStatusChip_(this)">🏭 กำลังผลิต</span>' +
+              '<span class="status-chip" data-val="DELIVERED" onclick="clickOrdStatusChip_(this)">🚛 ส่งแล้ว</span>' +
+              '<span class="status-chip" data-val="BILLED" onclick="clickOrdStatusChip_(this)">📄 วางบิล</span>' +
+              '<span class="status-chip" data-val="PARTIAL_PAID" onclick="clickOrdStatusChip_(this)">💰 จ่ายบางส่วน</span>' +
+              '<span class="status-chip" data-val="PAID" onclick="clickOrdStatusChip_(this)">✅ ชำระแล้ว</span>' +
+              '<span class="status-chip" data-val="CANCELLED" onclick="clickOrdStatusChip_(this)">❌ ยกเลิก</span>' +
+            '</div></div>' +
+        '</div>' +
+        '<div class="filter-bar">' +
+          '<div class="form-group" style="min-width:130px"><label>ตั้งแต่วันที่</label><input id="ord-from" type="date"></div>' +
+          '<div class="form-group" style="min-width:130px"><label>ถึงวันที่</label><input id="ord-to" type="date"></div>' +
+          '<div class="form-group"><button class="btn btn-secondary" onclick="resetOrdFilter_()">ล้างตัวกรอง</button></div>' +
+        '</div>' +
+        '<div class="table-wrap"><table class="data" id="ord-table"><thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>วันที่</th><th>ยอดรวม</th><th>คงค้าง</th><th>สถานะ</th><th>จัดการ</th></tr></thead><tbody id="ord-tbody"></tbody></table></div>' +
+        '<div id="ord-pager" style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:8px"></div>' +
+      '</div>'
     );
-    document.getElementById('ord-kw').addEventListener('keydown', function (e) { if (e.key === 'Enter') filterOrders(); });
+    var kwEl = document.getElementById('ord-kw');
+    var fromEl = document.getElementById('ord-from');
+    var toEl = document.getElementById('ord-to');
+    var timer = null;
+    function debounced() { clearTimeout(timer); timer = setTimeout(filterOrders, 300); }
+    kwEl.addEventListener('input', debounced);
+    kwEl.addEventListener('keydown', function (e) { if (e.key === 'Enter') { clearTimeout(timer); filterOrders(); } });
+    fromEl.addEventListener('change', filterOrders);
+    toEl.addEventListener('change', filterOrders);
+    renderOrdersPage_();
   });
 };
 
-async function filterOrders() {
-  var kw = document.getElementById('ord-kw').value.trim();
-  var status = document.getElementById('ord-status').value;
-  var from = document.getElementById('ord-from').value;
-  var to = document.getElementById('ord-to').value;
-  var payload = {};
-  if (kw) payload.keyword = kw;
-  if (status) payload.status = status;
-  if (from) payload.from_date = from;
-  if (to) payload.to_date = to;
-  var res = await api('listOrders', payload);
-  var orders = (res && res.ok) ? res.data : [];
-  var rows = orders.map(function (o) {
+function changeOrdPerPage_(val) {
+  _ordPerPage = parseInt(val, 10);
+  _ordPage = 1;
+  renderOrdersPage_();
+}
+
+function clickOrdStatusChip_(el) {
+  document.querySelectorAll('#ord-status-chips .status-chip').forEach(function (c) { c.classList.remove('active'); });
+  el.classList.add('active');
+  _ordStatusFilter = el.getAttribute('data-val');
+  _ordPage = 1;
+  filterOrders();
+}
+
+function resetOrdFilter_() {
+  document.getElementById('ord-kw').value = '';
+  document.getElementById('ord-from').value = '';
+  document.getElementById('ord-to').value = '';
+  _ordStatusFilter = '';
+  document.querySelectorAll('#ord-status-chips .status-chip').forEach(function (c) { c.classList.remove('active'); });
+  document.querySelector('#ord-status-chips .status-chip[data-val=""]').classList.add('active');
+  _ordPage = 1;
+  filterOrders();
+}
+
+function renderOrdersPage_() {
+  var total = _ordFiltered.length;
+  var perPage = _ordPerPage;
+  var totalPages = perPage === 0 ? 1 : Math.ceil(total / perPage);
+  if (_ordPage > totalPages) _ordPage = totalPages;
+  var start = perPage === 0 ? 0 : (_ordPage - 1) * perPage;
+  var pageItems = perPage === 0 ? _ordFiltered : _ordFiltered.slice(start, start + perPage);
+
+  var rows = pageItems.map(function (o) {
     var acts = '<button class="btn btn-secondary btn-sm" onclick="openOrderDetail(\'' + esc(o.id) + '\')">ดู</button> ';
     acts += '<button class="btn btn-secondary btn-sm" onclick="printOrder(\'' + esc(o.id) + '\')">🖨️</button> ';
     if (o.status !== 'CANCELLED' && o.status !== 'PAID') {
@@ -714,8 +762,53 @@ async function filterOrders() {
       '<td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td>' +
       '<td style="white-space:normal">' + acts + '</td></tr>';
   }).join('');
-  var tbody = document.querySelector('#page table tbody');
+  var tbody = document.getElementById('ord-tbody');
   if (tbody) tbody.innerHTML = rows || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted)">ไม่พบรายการ</td></tr>';
+  var ct = document.getElementById('ord-count');
+  if (ct) ct.textContent = (perPage === 0 ? total : start + 1 + '-' + Math.min(start + perPage, total)) + ' จาก ' + total + ' รายการ';
+
+  var pager = document.getElementById('ord-pager');
+  if (pager) {
+    var paging = '';
+    if (perPage !== 0 && totalPages > 1) {
+      paging += '<div style="display:flex;align-items:center;gap:4px">';
+      paging += '<button class="btn btn-secondary btn-sm" onclick="ordGoPage_(1)"' + (_ordPage === 1 ? ' disabled' : '') + '>«</button>';
+      paging += '<button class="btn btn-secondary btn-sm" onclick="ordGoPage_(' + (_ordPage - 1) + ')"' + (_ordPage === 1 ? ' disabled' : '') + '>‹</button>';
+      var pageStart = Math.max(1, _ordPage - 2);
+      var pageEnd = Math.min(totalPages, _ordPage + 2);
+      if (pageStart > 1) paging += '<span style="padding:0 6px;color:var(--text-muted)">...</span>';
+      for (var p = pageStart; p <= pageEnd; p++) {
+        paging += '<button class="btn btn-sm' + (p === _ordPage ? ' btn-primary' : ' btn-secondary') + '" onclick="ordGoPage_(' + p + ')">' + p + '</button>';
+      }
+      if (pageEnd < totalPages) paging += '<span style="padding:0 6px;color:var(--text-muted)">...</span>';
+      paging += '<button class="btn btn-secondary btn-sm" onclick="ordGoPage_(' + (_ordPage + 1) + ')"' + (_ordPage === totalPages ? ' disabled' : '') + '>›</button>';
+      paging += '<button class="btn btn-secondary btn-sm" onclick="ordGoPage_(' + totalPages + ')"' + (_ordPage === totalPages ? ' disabled' : '') + '>»</button>';
+      paging += '</div>';
+    }
+    pager.innerHTML = paging;
+  }
+}
+
+function ordGoPage_(p) {
+  _ordPage = p;
+  renderOrdersPage_();
+  document.querySelector('#page .card').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function filterOrders() {
+  var kw = (document.getElementById('ord-kw') || {}).value || '';
+  var from = (document.getElementById('ord-from') || {}).value || '';
+  var to = (document.getElementById('ord-to') || {}).value || '';
+  kw = kw.trim();
+  var payload = {};
+  if (kw) payload.keyword = kw;
+  if (_ordStatusFilter) payload.status = _ordStatusFilter;
+  if (from) payload.from_date = from;
+  if (to) payload.to_date = to;
+  var res = await api('listOrders', payload);
+  _ordFiltered = (res && res.ok) ? res.data : [];
+  _ordPage = 1;
+  renderOrdersPage_();
 }
 
 /* ================== ORDER FORM ================== */
