@@ -27,6 +27,8 @@ function buildSnapshot_(order, items) {
       due_date: order.due_date,
       sale_mode: order.sale_mode,
       credit_days: customer.credit_days || '',
+      header_text: order.header_text || '',
+      footer_text: order.footer_text || '',
       subtotal: order.subtotal,
       discount_amt: order.discount_amt,
       vat_mode: order.vat_mode,

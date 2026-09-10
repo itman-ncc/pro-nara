@@ -117,6 +117,8 @@ function createOrder(payload) {
       balance: totals.grand_total,
       locked: 'FALSE',
       note: payload.note || '',
+      header_text: payload.header_text || '',
+      footer_text: payload.footer_text || '',
       cancel_reason: '',
       ref_cancelled_order: '',
       created_by: me_(),
@@ -201,6 +203,14 @@ function updateOrder(orderId, payload) {
     if (payload.note !== undefined && payload.note !== before.note) {
       merged.note = payload.note;
       changed.push('note');
+    }
+    if (payload.header_text !== undefined && payload.header_text !== before.header_text) {
+      merged.header_text = payload.header_text;
+      changed.push('header_text');
+    }
+    if (payload.footer_text !== undefined && payload.footer_text !== before.footer_text) {
+      merged.footer_text = payload.footer_text;
+      changed.push('footer_text');
     }
     if (payload.due_date !== undefined && payload.due_date !== before.due_date) {
       merged.due_date = payload.due_date;

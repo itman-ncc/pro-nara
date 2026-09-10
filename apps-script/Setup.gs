@@ -20,7 +20,7 @@ var SETUP_SHEETS = {
   'Products': ['id', 'code', 'name', 'unit', 'price_retail', 'price_wholesale', 'min_area_sqm', 'is_active'],
   'Orders': ['id', 'doc_no', 'customer_id', 'customer_name', 'order_date', 'due_date', 'sale_mode', 'status',
     'revision_no', 'subtotal', 'discount_amt', 'vat_mode', 'vat_rate', 'vat_amount', 'wht_amount', 'grand_total',
-    'paid_total', 'balance', 'locked', 'note', 'cancel_reason', 'ref_cancelled_order', 'created_by', 'created_at',
+    'paid_total', 'balance', 'locked', 'note', 'header_text', 'footer_text', 'cancel_reason', 'ref_cancelled_order', 'created_by', 'created_at',
     'updated_by', 'updated_at'],
   'OrderItems': ['id', 'order_id', 'line_no', 'product_id', 'description', 'width_m', 'height_m', 'qty',
     'area_sqm', 'price_mode', 'unit_price', 'extra_charge', 'extra_note', 'line_total'],
