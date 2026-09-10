@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="th">
 <head>
 <meta charset="UTF-8">
@@ -1470,6 +1470,9 @@ async function printDoc(docId) {
 }
 
 /* --- แปลงตัวเลขเป็นคำภาษาไทย --- */
+/* ================== PRINT TEMPLATES (Google Sheets Format) ================== */
+
+/* --- แปลงตัวเลขเป็นคำไทย --- */
 function numToThaiWords_(n) {
   if (n === 0) return 'ศูนย์บาทถ้วน';
   var units = ['','สิบ','ร้อย','พัน','หมื่น','แสน','ล้าน'];
@@ -1491,99 +1494,260 @@ function numToThaiWords_(n) {
   return baht + 'บาทถ้วน';
 }
 
-/* --- CSS ร่วมสำหรับเทมเพลตพิมพ์ A4 --- */
+/* --- CSS สำหรับเทมเพลตพิมพ์ A4 (Angsana New) --- */
 function printCSS_() {
-  return '@page{size:A4;margin:15mm 12mm}*{box-sizing:border-box;margin:0;padding:0}' +
-    'body{font-family:"Sarabun",sans-serif;color:#111;padding:0;font-size:14px;line-height:1.6}' +
-    '.btnp{margin-bottom:12px;padding:10px 16px;background:#1d4ed8;color:#fff;border:0;border-radius:6px;cursor:pointer;font-size:14px}' +
-    '.wm{position:fixed;top:40%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);font-size:90px;color:rgba(220,38,38,.18);font-weight:800;z-index:99;pointer-events:none}' +
-    'table{width:100%;border-collapse:collapse;font-size:13px}' +
-    'th,td{border:1px solid #000;padding:5px 8px;text-align:left}' +
-    'th{background:#f1f5f9;font-weight:600}' +
-    '.r{text-align:right}.c{text-align:center}' +
-    '@media print{.btnp{display:none}}';
+  return '@page{size:210mm 297mm;margin:10mm 10mm 10mm 10mm}' +
+    '*{box-sizing:border-box;margin:0;padding:0}' +
+    'body{font-family:"Angsana New","Times New Roman",serif;color:#000;padding:0;font-size:16pt;line-height:1.4}' +
+    '.print-btns{padding:8px 16px;background:#1d4ed8;color:#fff;border:0;border-radius:6px;cursor:pointer;font-size:14px;font-family:inherit;margin:0 4px}' +
+    '.print-btns:hover{background:#1e40af}' +
+    '.print-toolbar{background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:10px 16px;position:sticky;top:0;z-index:100;display:flex;align-items:center;gap:8px}' +
+    '.wm{position:fixed;top:35%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);font-size:80px;color:rgba(220,38,38,.15);font-weight:800;z-index:99;pointer-events:none}' +
+    'table.doc{width:100%;border-collapse:collapse;font-family:"Angsana New","Times New Roman",serif;font-size:16pt}' +
+    'table.doc td,table.doc th{padding:2px 4px;vertical-align:top}' +
+    '.r{text-align:right}.c{text-align:center}.b{font-weight:bold}' +
+    '@media print{.print-toolbar{display:none !important}.wm{display:none !important}}';
 }
 
-/* --- ส่วนหัวเอกสาร (ร้าน + เลขที่/วันที่) --- */
-function printHeader_(title, docNo, issueDate) {
+/* --- สร้าง shop info bar สำหรับเอกสาร --- */
+function printShopInfo_() {
   var s = APP.settings || {};
-  return '<div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid #000;padding-bottom:10px;margin-bottom:14px">' +
-    '<div>' +
-      '<div style="font-size:20px;font-weight:700">' + esc(title) + '</div>' +
-      '<div style="font-size:13px;margin-top:4px"><strong>' + esc(s.shopName || '') + '</strong></div>' +
-      (s.shopAddress ? '<div style="font-size:12px">' + esc(s.shopAddress) + '</div>' : '') +
-      (s.shopPhone ? '<div style="font-size:12px">โทรศัพท์: ' + esc(s.shopPhone) + '</div>' : '') +
-      (s.shopTaxId ? '<div style="font-size:12px">เลขประจำตัวผู้เสียภาษี: ' + esc(s.shopTaxId) + '</div>' : '') +
-    '</div>' +
-    '<div style="text-align:right;font-size:13px">' +
-      '<div><strong>เลขที่:</strong> ' + esc(docNo) + '</div>' +
-      '<div><strong>วันที่:</strong> ' + fmtDateTh(issueDate) + '</div>' +
-    '</div></div>';
+  var parts = [];
+  parts.push(esc(s.shopName || ''));
+  if (s.shopAddress) parts.push('เลขที่ ' + esc(s.shopAddress));
+  if (s.shopPhone) parts.push('โทรศัพท์ ' + esc(s.shopPhone));
+  if (s.shopTaxId) parts.push('เลขประจำตัวผู้เสียภาษี ' + esc(s.shopTaxId));
+  return '<tr><td colspan="10" class="c b" style="font-size:12pt;padding:4px 0">' + parts.join('  ') + '</td></tr>';
 }
 
-/* --- ส่วนข้อมูลลูกค้า --- */
-function printCustomer_(order) {
-  return '<div style="margin-bottom:12px">' +
-    '<div><strong>เรียน:</strong> ' + esc(order.customer_name || '') + '</div>' +
-    (order.customer_address ? '<div style="font-size:12px;margin-left:40px">' + esc(order.customer_address) + '</div>' : '') +
-    (order.customer_phone ? '<div style="font-size:12px;margin-left:40px">โทรศัพท์: ' + esc(order.customer_phone) + '</div>' : '') +
-    (order.customer_tax_id ? '<div style="font-size:12px;margin-left:40px">เลขประจำตัวผู้เสียภาษี: ' + esc(order.customer_tax_id) + '</div>' : '') +
-  '</div>';
-}
+/* --- ตารางรายการสินค้า 10 คอลัมน์ (ตาม Google Sheets) --- */
+function printItemsTable10_(items, startRow) {
+  var r = startRow || 1;
+  var header = '<tr>' +
+    '<td class="c b" style="border:1px solid #000;width:35px">ลำดับ</td>' +
+    '<td class="c b" style="border:1px solid #000" colspan="4">รายการ</td>' +
+    '<td class="c b" style="border:1px solid #000;width:50px">จำนวน</td>' +
+    '<td class="c b" style="border:1px solid #000;width:45px">หน่วย</td>' +
+    '<td class="c b" style="border:1px solid #000;width:75px">ราคาหน่วยละ</td>' +
+    '<td class="c b" style="border:1px solid #000;width:80px">จำนวนเงิน</td>' +
+    '</tr>';
 
-/* --- ตารางรายการสินค้า --- */
-function printItemsTable_(items, showArea) {
-  var headerRow = '<tr><th class="c" style="width:40px">ลำดับ</th><th>รายการ</th>';
-  if (showArea) headerRow += '<th class="r" style="width:60px">พื้นที่ (ตร.ม.)</th>';
-  headerRow += '<th class="r" style="width:50px">จำนวน</th><th class="r" style="width:60px">หน่วย</th><th class="r" style="width:80px">ราคา/หน่วย</th><th class="r" style="width:80px">จำนวนเงิน</th></tr>';
-  var bodyRows = items.map(function (it, i) {
-    var desc = esc(it.description || '');
-    if (it.width_m && it.height_m) desc += '<div style="font-size:11px;color:#666">(' + esc(it.width_m) + ' x ' + esc(it.height_m) + ' ม.)</div>';
-    var row = '<td class="c">' + (i + 1) + '</td><td>' + desc + '</td>';
-    if (showArea) row += '<td class="r">' + (it.area_sqm || '') + '</td>';
-    row += '<td class="r">' + (it.qty || '') + '</td>';
-    row += '<td class="r">' + (it.unit || 'ชิ้น') + '</td>';
-    row += '<td class="r">' + fmtMoney(it.unit_price) + '</td>';
-    row += '<td class="r">' + fmtMoney(it.line_total) + '</td>';
-    return '<tr>' + row + '</tr>';
+  var rows = items.map(function (it, i) {
+    var bg = (i % 2 === 1) ? ' style="background:#f3f3f3"' : '';
+    return '<tr' + bg + '>' +
+      '<td class="c" style="border:1px solid #000">' + (i + 1) + '</td>' +
+      '<td colspan="4" style="border:1px solid #000;white-space:normal;word-wrap:break-word">' + esc(it.description || '') + '</td>' +
+      '<td class="c" style="border:1px solid #000">' + (it.qty || '') + '</td>' +
+      '<td class="c" style="border:1px solid #000">' + esc(it.unit || 'ตร.ม.') + '</td>' +
+      '<td class="r" style="border:1px solid #000">' + fmtMoney(it.unit_price) + '</td>' +
+      '<td class="r" style="border:1px solid #000">' + fmtMoney(it.line_total) + '</td>' +
+      '</tr>';
   }).join('');
-  return '<table><thead>' + headerRow + '</thead><tbody>' + bodyRows + '</tbody></table>';
-}
 
-/* --- ส่วนสรุปยอด --- */
-function printSummary_(order, totalAmount, showVat) {
-  var lines = '';
-  lines += '<div style="margin-top:14px;padding:10px 0;border-top:1px solid #999">';
-  lines += '<div style="display:flex;justify-content:space-between"><span>รวมเป็นเงินทั้งสิ้น</span><strong>' + fmtMoney(order.subtotal || totalAmount) + ' บาท</strong></div>';
-  if (order.discount_amt > 0) lines += '<div style="display:flex;justify-content:space-between"><span>ส่วนลด</span><span>-' + fmtMoney(order.discount_amt) + ' บาท</span></div>';
-  if (showVat && order.vat_amount > 0) {
-    if (order.vat_mode === 'INCLUDE') {
-      lines += '<div style="display:flex;justify-content:space-between"><span>(ภาษีมูลค่าเพิ่มรวมในราคา)</span><span>' + fmtMoney(order.vat_amount) + ' บาท</span></div>';
-    } else {
-      lines += '<div style="display:flex;justify-content:space-between"><span>ภาษีมูลค่าเพิ่ม 7%</span><span>' + fmtMoney(order.vat_amount) + ' บาท</span></div>';
-    }
+  /* เติม row ว่างให้ครบ 15 แถว */
+  var emptyRows = '';
+  var fillCount = Math.max(0, 15 - items.length);
+  for (var e = 0; e < fillCount; e++) {
+    var ebg = ((items.length + e) % 2 === 1) ? ' style="background:#f3f3f3"' : '';
+    emptyRows += '<tr' + ebg + '><td style="border:1px solid #000">&nbsp;</td><td colspan="4" style="border:1px solid #000">&nbsp;</td><td style="border:1px solid #000">&nbsp;</td><td style="border:1px solid #000">&nbsp;</td><td style="border:1px solid #000">&nbsp;</td><td style="border:1px solid #000">&nbsp;</td></tr>';
   }
-  if (order.wht_amount > 0) lines += '<div style="display:flex;justify-content:space-between"><span>หัก ณ ที่จ่าย</span><span>-' + fmtMoney(order.wht_amount) + ' บาท</span></div>';
-  var grand = totalAmount;
-  lines += '<div style="display:flex;justify-content:space-between;font-size:16px;margin-top:6px;padding-top:6px;border-top:1px solid #000"><strong>สุทธิ</strong><strong>' + fmtMoney(grand) + ' บาท</strong></div>';
-  lines += '<div style="margin-top:6px;font-size:12px">(' + numToThaiWords_(grand) + ')</div>';
-  lines += '</div>';
-  return lines;
+
+  return '<table class="doc"><tbody>' + header + rows + emptyRows + '</tbody></table>';
 }
 
-/* --- ส่วนลงชื่อ --- */
-function printSignature_(signatoryName) {
-  var name = signatoryName || '';
-  return '<div style="display:flex;justify-content:space-between;margin-top:50px;font-size:13px">' +
-    '<div style="text-align:center;flex:1">' +
-      '<div>ลงชื่อ.............................................................ผู้เสนอราคา</div>' +
-      '<div style="margin-top:4px">(' + esc(name) + ')</div>' +
-    '</div>' +
-    '<div style="text-align:center;flex:1">' +
-      '<div>ลงชื่อ.............................................................ผู้รับเสนอราคา</div>' +
-      '<div style="margin-top:4px">(&nbsp;)</div>' +
-      '<div style="margin-top:20px;font-size:11px">ตราประทับ (ถ้ามี)</div>' +
-    '</div></div>';
+/* --- สรุปยอดรวมเป็นเงิน (table row ตาม Google Sheets) --- */
+function printTotalRow_(grandTotal) {
+  return '<table class="doc" style="margin-top:4px"><tbody><tr>' +
+    '<td class="b" style="border:1px solid #000;width:35px">&nbsp;</td>' +
+    '<td class="b r" style="border:1px solid #000" colspan="4">รวมเป็นเงินทั้งสิ้น</td>' +
+    '<td class="c b" style="border:1px solid #000" colspan="4">(' + numToThaiWords_(grandTotal) + ')</td>' +
+    '<td class="r b" style="border:1px solid #000;width:80px">' + fmtMoney(grandTotal) + '</td>' +
+    '</tr></tbody></table>';
+}
+
+/* ================== ใบเสนอราคา ================== */
+function renderQuotation_(doc, order, items) {
+  var s = APP.settings || {};
+  var grandTotal = order.grand_total || 0;
+
+  var html = '<table class="doc"><tbody>';
+
+  /* Row 1: หัวเรื่อง */
+  html += '<tr><td colspan="10" class="c b" style="font-size:18pt;padding:8px 0">ใบเสนอราคา</td></tr>';
+
+  /* Row 2: ข้อมูลร้าน */
+  html += printShopInfo_();
+
+  /* Row 3: ว่าง */
+  html += '<tr style="height:20px"><td colspan="10"></td></tr>';
+
+  /* Row 4-5: เรียน + ที่อยู่ลูกค้า */
+  html += '<tr><td colspan="2" class="b">เรียน</td><td colspan="8">' + esc(order.customer_name || '') + '</td></tr>';
+  html += '<tr><td colspan="2" class="b"></td><td colspan="8" style="white-space:normal;word-wrap:break-word">' + esc(order.customer_address || '') + (order.customer_phone ? '<br>โทรศัพท์: ' + esc(order.customer_phone) : '') + '</td></tr>';
+
+  /* Row 6: เรื่อง */
+  html += '<tr><td colspan="2" class="b">เรื่อง</td><td colspan="8" class="b">ยื่นใบเสนอราคา</td></tr>';
+
+  /* Row 7: ข้อความแนะนำ */
+  html += '<tr><td colspan="10" style="padding:6px 0;white-space:normal;word-wrap:break-word;line-height:1.6">' +
+    '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1. ข้าพเจ้า <strong>' + esc(s.shopName || '') + '</strong>' +
+    (s.signatoryName ? ' โดย <strong>' + esc(s.signatoryName) + '</strong>' : '') +
+    (s.shopAddress ? ' อยู่เลขที่ ' + esc(s.shopAddress) : '') +
+    (s.shopPhone ? ' โทรศัพท์ ' + esc(s.shopPhone) : '') +
+    (s.shopTaxId ? ' เลขประจำตัวผู้เสียภาษี ' + esc(s.shopTaxId) : '') +
+    '<br>ข้าพเจ้า เป็นผู้มีคุณสมบัติครบถ้วนตามที่กำหนด และไม่เป็นผู้ทิ้งงานของทางราชการ' +
+    '<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. ข้าพเจ้าขอเสนอพัสดุ รวมทั้งบริการและกำหนดเวลาส่งมอบ ดังต่อไปนี้</td></tr>';
+
+  html += '</tbody></table>';
+
+  /* ตารางรายการ */
+  html += printItemsTable10_(items, 1);
+
+  /* รวมเป็นเงิน */
+  html += printTotalRow_(grandTotal);
+
+  /* เงื่อนไข */
+  html += '<table class="doc" style="margin-top:8px"><tbody>' +
+    '<tr><td colspan="10" class="b" style="border:none;padding:4px 0">เงื่อนไข</td></tr>' +
+    '<tr><td colspan="10" style="border:none;padding:2px 0;white-space:normal">- ซึ่งเป็นราคาที่รวมภาษีมูลค่าเพิ่ม รวมทั้งภาษีอากรอื่น และค่าใช้จ่ายทั้งปวงไว้ด้วยแล้ว</td></tr>' +
+    '<tr><td colspan="10" style="border:none;padding:2px 0;white-space:normal">- คำเสนอนี้จะยืนอยู่เป็นระยะเวลา ' + (order.credit_days || '...') + ' วัน นับตั้งแต่วันที่ได้ยื่นใบเสนอราคา</td></tr>' +
+    '<tr><td colspan="10" style="border:none;padding:2px 0;white-space:normal">- กำหนดส่งมอบพัสดุตามรายละเอียดรายการข้างต้น ภายใน ' + (order.credit_days || '...') + ' วัน นับถัดจากวันลงนามในใบสั่งซื้อ/สั่งจ้าง</td></tr>' +
+    '<tr><td colspan="10" style="border:none;padding:8px 0;text-align:right">เสนอมา ณ วันที่ ' + fmtDateTh(doc.issue_date) + '</td></tr>' +
+    '</tbody></table>';
+
+  /* ลงชื่อ */
+  html += '<table class="doc" style="margin-top:30px"><tbody><tr>' +
+    '<td class="c" colspan="5" style="border:none">ลงชื่อ.............................................................ผู้เจรจาตกลงราคา</td>' +
+    '<td class="c" colspan="5" style="border:none">ลงชื่อ.............................................................ผู้เสนอราคา</td>' +
+    '</tr><tr>' +
+    '<td class="c" colspan="5" style="border:none;padding-top:4px">( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</td>' +
+    '<td class="c" colspan="5" style="border:none;padding-top:4px">(' + esc(s.signatoryName || '') + ')</td>' +
+    '</tr><tr>' +
+    '<td class="c" colspan="5" style="border:none;padding-top:20px"></td>' +
+    '<td class="c" colspan="5" style="border:none;padding-top:8px">ตราประทับ (ถ้ามี)</td>' +
+    '</tr></tbody></table>';
+
+  return html;
+}
+
+/* ================== ใบส่งสินค้า / ใบวางบิล ================== */
+function renderBilling_(doc, order, items) {
+  var s = APP.settings || {};
+  var grandTotal = doc.total_amount != null ? doc.total_amount : (order.grand_total || 0);
+  var isDelivery = doc.doc_type === 'DELIVERY';
+  var title = isDelivery ? 'ใบส่งสินค้า/ใบวางบิล' : 'ใบวางบิล';
+
+  var html = '<table class="doc"><tbody>';
+
+  /* Row 1: หัวเรื่อง */
+  html += '<tr><td colspan="10" class="c b" style="font-size:18pt;padding:8px 0">' + title + '</td></tr>';
+
+  /* Row 2: ข้อมูลร้าน */
+  html += printShopInfo_();
+
+  /* Row 3: เลขที่เอกสาร + วันที่ */
+  html += '<tr>' +
+    '<td colspan="7"></td>' +
+    '<td class="r b" colspan="2" style="white-space:nowrap">เลขที่ใบส่งสินค้า</td>' +
+    '<td class="b">' + esc(doc.doc_no || '') + '</td>' +
+    '</tr>';
+
+  /* Row 4: วันที่ */
+  html += '<tr>' +
+    '<td colspan="7"></td>' +
+    '<td class="r" colspan="2">วันที่</td>' +
+    '<td>' + fmtDateTh(doc.issue_date) + '</td>' +
+    '</tr>';
+
+  /* Row 5: ชื่อลูกค้า */
+  html += '<tr>' +
+    '<td colspan="2" class="b">ชื่อลูกค้า</td>' +
+    '<td colspan="8">' + esc(order.customer_name || '') + '</td>' +
+    '</tr>';
+
+  /* Row 6-7: ที่อยู่ลูกค้า (rowspan) */
+  html += '<tr>' +
+    '<td colspan="2" class="b">ที่อยู่</td>' +
+    '<td colspan="8" rowspan="2" style="white-space:normal;word-wrap:break-word;border-bottom:1px solid #000">' + esc(order.customer_address || '') + (order.customer_phone ? '<br>โทรศัพท์: ' + esc(order.customer_phone) : '') + '</td>' +
+    '</tr>';
+  html += '<tr><td colspan="2" style="border-bottom:1px solid #000"></td></tr>';
+
+  html += '</tbody></table>';
+
+  /* ตารางรายการ */
+  html += printItemsTable10_(items, 1);
+
+  /* รวมเป็นเงิน */
+  html += printTotalRow_(grandTotal);
+
+  /* เงื่อนไข/หมายเหตุ */
+  html += '<table class="doc" style="margin-top:8px"><tbody>' +
+    '<tr><td colspan="10" style="border:none;padding:2px 0;white-space:normal">- ได้รับสินค้าตามรายการในสภาพดี และถูกต้องเรียบร้อยทุกประการ</td></tr>' +
+    '<tr><td colspan="10" style="border:none;padding:2px 0;white-space:normal">- หากสินค้ามีปัญหาหรือไม่ครบถ้วน กรุณาแจ้งกลับภายใน 3 วัน นับตั้งแต่วันที่ได้รับสินค้า</td></tr>' +
+    '<tr><td colspan="10" style="border:none;padding:2px 0;white-space:normal">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;มิฉะนั้นทางร้านจะไม่รับผิดชอบใด ๆ ทั้งสิ้น</td></tr>' +
+    '</tbody></table>';
+
+  /* ลงชื่อ 3 ฝั่ง */
+  html += '<table class="doc" style="margin-top:20px"><tbody>' +
+    '<tr>' +
+    '<td class="c" style="border:none;width:33%"></td>' +
+    '<td class="c" style="border:none;width:33%">ได้รับสินค้าตามรายการ</td>' +
+    '<td class="c" style="border:none;width:33%"></td>' +
+    '</tr><tr style="height:40px">' +
+    '<td class="c" style="border:none"></td>' +
+    '<td class="c" style="border:none"></td>' +
+    '<td class="c" style="border:none"></td>' +
+    '</tr><tr>' +
+    '<td class="c" style="border:none">ลงชื่อ</td>' +
+    '<td class="c" style="border:none">ลงชื่อ &nbsp;&nbsp;ผู้รับ &nbsp;&nbsp;ลงชื่อ &nbsp;&nbsp;ผู้ส่งของ</td>' +
+    '<td class="c" style="border:none">ลงชื่อ &nbsp;&nbsp;ผู้จัดการ</td>' +
+    '</tr><tr>' +
+    '<td class="c" style="border:none;padding-top:4px">( &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; )</td>' +
+    '<td class="c" style="border:none;padding-top:4px">( ' + esc(s.signatoryName || '') + ' )</td>' +
+    '<td class="c" style="border:none;padding-top:4px"></td>' +
+    '</tr><tr>' +
+    '<td class="c" style="border:none;padding-top:6px">…....../…........../…....</td>' +
+    '<td class="c" style="border:none;padding-top:6px">…....../…........../…....</td>' +
+    '<td class="c" style="border:none;padding-top:6px">…....../…........../…....</td>' +
+    '</tr></tbody></table>';
+
+  return html;
+}
+
+/* ================== เอกสารทั่วไป (ใบเสร็จ, ใบกำกับภาษี) ================== */
+function renderGeneric_(doc, order, items, title) {
+  var s = APP.settings || {};
+  var grandTotal = doc.total_amount != null ? doc.total_amount : (order.grand_total || 0);
+
+  var html = '<table class="doc"><tbody>';
+  html += '<tr><td colspan="10" class="c b" style="font-size:18pt;padding:8px 0">' + title + '</td></tr>';
+  html += printShopInfo_();
+
+  /* เลขที่ + วันที่ */
+  html += '<tr><td colspan="5"></td><td class="r b" colspan="3">เลขที่</td><td colspan="2">' + esc(doc.doc_no || '') + '</td></tr>';
+  html += '<tr><td colspan="5"></td><td class="r" colspan="3">วันที่</td><td colspan="2">' + fmtDateTh(doc.issue_date) + '</td></tr>';
+
+  /* ลูกค้า */
+  html += '<tr><td colspan="2" class="b">เรียน</td><td colspan="8">' + esc(order.customer_name || '') + '</td></tr>';
+  html += '<tr><td colspan="2" class="b"></td><td colspan="8" style="white-space:normal;word-wrap:break-word">' + esc(order.customer_address || '') + (order.customer_phone ? '<br>โทรศัพท์: ' + esc(order.customer_phone) : '') + '</td></tr>';
+  html += '</tbody></table>';
+
+  /* ตาราง */
+  html += printItemsTable10_(items, 1);
+
+  /* รวมเป็นเงิน */
+  html += printTotalRow_(grandTotal);
+
+  /* ลงชื่อ */
+  html += '<table class="doc" style="margin-top:40px"><tbody><tr>' +
+    '<td class="c" colspan="5" style="border:none">ลงชื่อ.............................................................ผู้เสนอราคา</td>' +
+    '<td class="c" colspan="5" style="border:none">ลงชื่อ.............................................................ผู้รับเสนอราคา</td>' +
+    '</tr><tr>' +
+    '<td class="c" colspan="5" style="border:none;padding-top:4px">(' + esc(s.signatoryName || '') + ')</td>' +
+    '<td class="c" colspan="5" style="border:none;padding-top:4px">(&nbsp;)</td>' +
+    '</tr></tbody></table>';
+
+  return html;
 }
 
 /* ================== RENDER PRINT (DISPATCH) ================== */
@@ -1593,7 +1757,6 @@ function renderPrint(doc) {
   var items = snap.items || [];
   var wm = doc.status === 'VOID' ? '<div class="wm">ยกเลิก</div>' : '';
 
-  /* เตรียมข้อมูลลูกค้าจาก snapshot */
   var custOrder = {
     customer_name: order.customer_name || '',
     customer_address: order.customer_address || '',
@@ -1604,7 +1767,8 @@ function renderPrint(doc) {
     vat_mode: order.vat_mode || 'NONE',
     vat_amount: order.vat_amount || 0,
     wht_amount: order.wht_amount || 0,
-    grand_total: order.grand_total || 0
+    grand_total: order.grand_total || 0,
+    credit_days: order.credit_days || ''
   };
 
   var title = docTypeName(doc.doc_type);
@@ -1619,83 +1783,41 @@ function renderPrint(doc) {
   }
 
   var html = '<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>' + title + ' ' + doc.doc_no + '</title>' +
-    '<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">' +
     '<style>' + printCSS_() + '</style></head><body>' +
-    '<button class="btnp" onclick="window.print()">🖨️ พิมพ์เอกสาร</button>' + wm +
-    body + '</body></html>';
+    '<div style="padding:0">' + body + '</div>' +
+    '</body></html>';
 
-  var w = window.open('', '_blank');
-  if (!w) { toast('กรุณาอนุญาตให้เปิดหน้าต่างใหม่', 'error'); return; }
-  w.document.write(html);
-  w.document.close();
+  showPrintPreview_(html, title + ' ' + doc.doc_no);
 }
 
-/* ================== ใบเสนอราคา ================== */
-function renderQuotation_(doc, order, items) {
-  var s = APP.settings || {};
-  var header = printHeader_('ใบเสนอราคา', doc.doc_no, doc.issue_date);
-  var cust = printCustomer_(order);
-  var table = printItemsTable_(items, true);
-  var totalAmount = order.grand_total || 0;
-  var summary = printSummary_(order, totalAmount, true);
-  var sig = printSignature_(s.signatoryName);
+/* ================== PREVIEW MODAL ================== */
+function showPrintPreview_(html, title) {
+  var existing = document.getElementById('print-preview-modal');
+  if (existing) existing.remove();
 
-  var bodyText = '<div style="font-size:13px;margin:10px 0;line-height:1.8">' +
-    '<p>เรื่อง &nbsp;&nbsp; <strong>ยื่นใบเสนอราคา</strong></p>' +
-    '<p style="margin-top:8px;text-indent:40px">ข้าพเจ้า <strong>' + esc(s.shopName || '') + '</strong>' +
-    (s.shopAddress ? ' อยู่เลขที่ ' + esc(s.shopAddress) : '') +
-    (s.shopPhone ? ' โทรศัพท์ ' + esc(s.shopPhone) : '') +
-    (s.shopTaxId ? ' เลขประจำตัวผู้เสียภาษี ' + esc(s.shopTaxId) : '') +
-    ' ข้าพเจ้า เป็นผู้มีคุณสมบัติครบถ้วนตามที่กำหนด และไม่เป็นผู้ทิ้งงานของทางราชการ</p>' +
-    '<p style="text-indent:40px">ข้าพเจ้าขอเสนอพัสดุ รวมทั้งบริการและกำหนดเวลาส่งมอบ ดังต่อไปนี้</p>' +
-    '</div>';
+  var modal = document.createElement('div');
+  modal.id = 'print-preview-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999;display:flex;flex-direction:column;background:#fff';
+  modal.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#1e293b;color:#fff;flex-shrink:0">' +
+      '<span style="font-weight:600;font-size:15px">' + esc(title) + '</span>' +
+      '<div style="display:flex;gap:8px">' +
+        '<button onclick="document.getElementById(\'preview-iframe\').contentWindow.print()" style="padding:6px 16px;background:#2563eb;color:#fff;border:0;border-radius:6px;cursor:pointer;font-size:13px">🖨️ พิมพ์</button>' +
+        '<button onclick="document.getElementById(\'print-preview-modal\').remove()" style="padding:4px 10px;background:#6b7280;color:#fff;border:0;border-radius:6px;cursor:pointer;font-size:13px">✕ ปิด</button>' +
+      '</div></div>' +
+    '<iframe id="preview-iframe" style="flex:1;border:none;width:100%"></iframe>';
+    '<iframe id="preview-iframe" style="flex:1;border:none;width:100%"></iframe>';
 
-  var terms = '<div style="font-size:12px;margin-top:12px;line-height:1.8">' +
-    '<p><strong>เงื่อนไข:</strong></p>' +
-    '<p style="text-indent:20px">ซึ่งเป็นราคาที่รวมภาษีมูลค่าเพิ่ม รวมทั้งภาษีอากรอื่น และค่าใช้จ่ายทั้งปวงไว้ด้วยแล้ว</p>' +
-    '<p style="text-indent:20px">กำหนดส่งมอบพัสดุตามรายละเอียดรายการข้างต้น ภายใน ' + (order.credit_days || '...') + ' วัน นับถัดจากวันลงนามในใบสั่งซื้อ/สั่งจ้าง</p>' +
-    '</div>';
+  document.body.appendChild(modal);
 
-  return header + cust + bodyText + table + summary + terms + sig;
+  var iframe = document.getElementById('preview-iframe');
+  var doc2 = iframe.contentDocument || iframe.contentWindow.document;
+  doc2.open();
+  doc2.write(html);
+  doc2.close();
 }
 
-/* ================== ใบวางบิล / ใบส่งของ ================== */
-function renderBilling_(doc, order, items) {
-  var s = APP.settings || {};
-  var isBilling = doc.doc_type === 'BILLING';
-  var title = isBilling ? 'ใบวางบิล' : 'ใบส่งของ';
-  var header = printHeader_(title, doc.doc_no, doc.issue_date);
-  var cust = printCustomer_(order);
-  var table = printItemsTable_(items, true);
-  var totalAmount = doc.total_amount != null ? doc.total_amount : (order.grand_total || 0);
-  var summary = printSummary_(order, totalAmount, !isBilling);
-
-  var dueDate = doc.due_date || order.due_date || '';
-  var dueSection = dueDate ? '<div style="margin-top:10px;font-size:13px"><strong>กำหนดชำระ:</strong> ' + fmtDateTh(dueDate) + '</div>' : '';
-
-  var sig = printSignature_(s.signatoryName);
-
-  return header + cust + table + summary + dueSection + sig;
-}
-
-/* ================== เอกสารทั่วไป (ใบเสร็จ, ใบกำกับภาษี) ================== */
-function renderGeneric_(doc, order, items, title) {
-  var s = APP.settings || {};
-  var header = printHeader_(title, doc.doc_no, doc.issue_date);
-  var cust = printCustomer_(order);
-  var table = printItemsTable_(items, false);
-  var totalAmount = doc.total_amount != null ? doc.total_amount : (order.grand_total || 0);
-  var summary = printSummary_(order, totalAmount, true);
-
-  var dueDate = doc.due_date || order.due_date || '';
-  var dueSection = dueDate ? '<div style="margin-top:10px;font-size:13px"><strong>กำหนดชำระ:</strong> ' + fmtDateTh(dueDate) + '</div>' : '';
-
-  var sig = printSignature_(s.signatoryName);
-
-  return header + cust + table + summary + dueSection + sig;
-}
-
-/* ================== พิมพ์ใบสั่งจ้าง (ไม่ผ่าน Documents — พิมพ์ตรงจาก Orders) ================== */
+/* ================== พิมพ์ใบสั่งจ้าง (ไม่ผ่าน Documents) ================== */
 async function printOrder(orderId) {
   var res = await api('getOrderDetail', { id: orderId });
   if (!res || !res.ok) { toast('ไม่พบใบสั่งจ้าง', 'error'); return; }
@@ -1704,30 +1826,43 @@ async function printOrder(orderId) {
   var items = data.items || [];
 
   var s = APP.settings || {};
-  var header = printHeader_('ใบสั่งจ้าง', order.doc_no, order.order_date);
-  var cust = printCustomer_(order);
-  var table = printItemsTable_(items, true);
-  var totalAmount = order.grand_total || 0;
-  var summary = printSummary_(order, totalAmount, true);
-  var sig = printSignature_(s.signatoryName);
+  var grandTotal = order.grand_total || 0;
 
-  var bodyText = '<div style="font-size:13px;margin:10px 0;line-height:1.8">' +
-    '<p><strong>ลูกค้า:</strong> ' + esc(order.customer_name || '') + '</p>' +
-    '<p><strong>โหมดขาย:</strong> ' + (order.sale_mode === 'WHOLESALE' ? 'ขายส่ง' : 'ขายปลีก') + '</p>' +
-    '<p><strong>กำหนดส่ง:</strong> ' + fmtDateTh(order.due_date) + '</p>' +
-    '</div>';
+  /* สร้าง body ใบสั่งจ้าง */
+  var body = '<table class="doc"><tbody>';
+  body += '<tr><td colspan="10" class="c b" style="font-size:18pt;padding:8px 0">ใบสั่งจ้าง</td></tr>';
+  body += printShopInfo_();
+  body += '<tr><td colspan="5"></td><td class="r b" colspan="3">เลขที่</td><td colspan="2">' + esc(order.doc_no || '') + '</td></tr>';
+  body += '<tr><td colspan="5"></td><td class="r" colspan="3">วันที่</td><td colspan="2">' + fmtDateTh(order.order_date) + '</td></tr>';
+  body += '<tr><td colspan="2" class="b">ลูกค้า</td><td colspan="8">' + esc(order.customer_name || '') + '</td></tr>';
+  body += '<tr><td colspan="2" class="b">ที่อยู่</td><td colspan="8" style="white-space:normal;word-wrap:break-word">' + esc(order.customer_address || '') + (order.customer_phone ? '<br>โทรศัพท์: ' + esc(order.customer_phone) : '') + '</td></tr>';
+  body += '<tr><td colspan="2" class="b">โหมดขาย</td><td colspan="8">' + (order.sale_mode === 'WHOLESALE' ? 'ขายส่ง' : 'ขายปลีก') + '</td></tr>';
+  body += '<tr><td colspan="2" class="b">กำหนดส่ง</td><td colspan="8">' + fmtDateTh(order.due_date) + '</td></tr>';
+  body += '</tbody></table>';
+  body += printItemsTable10_(items, 1);
+  body += printTotalRow_(grandTotal);
+
+  /* ลงชื่อ */
+  body += '<table class="doc" style="margin-top:30px"><tbody><tr>' +
+    '<td class="c" colspan="5" style="border:none">ลงชื่อ.............................................................ผู้เสนอราคา</td>' +
+    '<td class="c" colspan="5" style="border:none">ลงชื่อ.............................................................ผู้รับเสนอราคา</td>' +
+    '</tr><tr>' +
+    '<td class="c" colspan="5" style="border:none;padding-top:4px">(' + esc(s.signatoryName || '') + ')</td>' +
+    '<td class="c" colspan="5" style="border:none;padding-top:4px">(&nbsp;)</td>' +
+    '</tr></tbody></table>';
 
   var html = '<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>ใบสั่งจ้าง ' + order.doc_no + '</title>' +
-    '<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">' +
     '<style>' + printCSS_() + '</style></head><body>' +
-    '<button class="btnp" onclick="window.print()">🖨️ พิมพ์เอกสาร</button>' +
-    header + cust + bodyText + table + summary + sig +
+    '<div class="print-toolbar">' +
+      '<span style="font-weight:600;font-size:14px">ใบสั่งจ้าง ' + esc(order.doc_no) + '</span>' +
+      '<span style="flex:1"></span>' +
+      '<button class="print-btns" onclick="window.print()">🖨️ พิมพ์</button>' +
+      '<button class="print-btns" style="background:#6b7280" onclick="window.close()">ปิด</button>' +
+    '</div>' +
+    '<div style="padding:0 10mm">' + body + '</div>' +
     '</body></html>';
 
-  var w = window.open('', '_blank');
-  if (!w) { toast('กรุณาอนุญาตให้เปิดหน้าต่างใหม่', 'error'); return; }
-  w.document.write(html);
-  w.document.close();
+  showPrintPreview_(html, 'ใบสั่งจ้าง ' + order.doc_no);
 }
 
 /* ================== PAYMENT ================== */
