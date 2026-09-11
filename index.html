@@ -203,6 +203,7 @@
   /* Print template (A4) */
   @media print { body * { visibility: hidden; } #print-area, #print-area * { visibility: visible; } #print-area { position: absolute; left: 0; top: 0; width: 100%; } }
 </style>
+<script src="https://cdn.ckeditor.com/4.22.1/standard/ckeditor.js"></script>
 </head>
 <body>
 <div id="app"></div>
@@ -825,14 +826,14 @@ ROUTES['order-form'] = function () {
       '<div class="form-group"><label>โหมดขาย</label><select id="sale-mode"><option value="RETAIL">ขายปลีก</option><option value="WHOLESALE">ขายส่ง</option></select></div>' +
       '<div class="form-group"><label>กำหนดส่ง</label><input id="due-date" type="date"></div>' +
     '</div>' +
-    '<div class="form-group"><label>ข้อความส่วนหัว (ก่อนตารางรายการ)</label><textarea id="header-text" rows="6" style="width:100%;font-family:inherit;font-size:13px;white-space:pre-wrap"></textarea></div>' +
+    '<div class="form-group"><label>ข้อความส่วนหัว (ก่อนตารางรายการ)</label><textarea id="header-text" rows="6"></textarea></div>' +
     '<h3 style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">รายการสินค้า' +
       '<button class="btn btn-primary" onclick="openItemPopup()">+ เพิ่มรายการสินค้า</button>' +
     '</h3>' +
     '<div class="table-wrap"><table class="data items-tbl"><thead><tr>' +
       '<th>#</th><th>สินค้า / รายละเอียด</th><th>ขนาด (ม.)</th><th class="num">จำนวน</th><th class="num">ตร.ม.</th><th class="num">ราคา/ตร.ม.</th><th class="num">เพิ่มพิเศษ</th><th>หมายเหตุ</th><th class="num">รวม (฿)</th><th></th>' +
     '</tr></thead><tbody id="items-tbody"></tbody></table></div>' +
-    '<div class="form-group" style="margin-top:10px"><label>ข้อความส่วนท้าย (หลังตารางรายการ)</label><textarea id="footer-text" rows="6" style="width:100%;font-family:inherit;font-size:13px;white-space:pre-wrap"></textarea></div>' +
+    '<div class="form-group" style="margin-top:10px"><label>ข้อความส่วนท้าย (หลังตารางรายการ)</label><textarea id="footer-text" rows="6"></textarea></div>' +
     '<div class="grid grid-3" style="margin-top:14px">' +
       '<div class="form-group"><label>ส่วนลด (฿)</label><input id="discount" type="number" value="0" step="0.01"></div>' +
       '<div class="form-group"><label>รูปแบบภาษี</label><select id="vat-mode"><option value="NONE">ไม่มีภาษี</option><option value="EXCLUDE">ภาษี +7% (บวกเพิ่ม)</option><option value="INCLUDE">ภาษีรวม</option></select></div>' +
@@ -882,39 +883,55 @@ function initOrderForm() {
         }
         /* auto-fill header_text */
         var s = APP.settings || {};
-        var headerEl = document.getElementById('header-text');
-        if (headerEl && !headerEl.value.trim()) {
+        var headerText = (function () {
           var custAddr = cust ? (cust.address || '') : '';
           var custPhone = cust ? (cust.phone || '') : '';
           var custTax = cust ? (cust.tax_id || '') : '';
-          headerEl.value =
-            'เรียน\t' + (cust ? cust.name : '') + '\n' +
-            'ที่อยู่ ' + custAddr + ' โทรศัพท์ ' + custPhone + ' เลขประจำตัวผู้เสียภาษี ' + custTax + '\n' +
-            '\n' +
-            'เรื่อง\tยื่นใบเสนอราคา\n' +
-            '\n' +
-            ' 1. ข้าพเจ้า ' + (s.shopName || '') + '\tอยู่เลขที่\t' + (s.shopAddress || '') + ' โทรศัพท์ ' + (s.shopPhone || '') + ' เลขประจำตัวผู้เสียภาษี\t' + (s.shopTaxId || '') + '\n' +
-            'ข้าพเจ้า เป็นผู้มีคุณสมบัติครบถ้วนตามที่กำหนด และไม่เป็นผู้ทิ้งงานของทางราชการ\n' +
-            ' 2. ข้าพเจ้าขอเสนอพัสดุ รวมทั้งบริการและกำหนดเวลาส่งมอบ ดังต่อไปนี้';
+          return '<p>เรียน&nbsp;&nbsp;<strong>' + esc(cust ? cust.name : '') + '</strong></p>' +
+            '<p>ที่อยู่ ' + esc(custAddr) + ' โทรศัพท์ ' + esc(custPhone) + ' เลขประจำตัวผู้เสียภาษี ' + esc(custTax) + '</p>' +
+            '<p>&nbsp;</p>' +
+            '<p><strong>เรื่อง&nbsp;&nbsp;ยื่นใบเสนอราคา</strong></p>' +
+            '<p>&nbsp;</p>' +
+            '<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1. ข้าพเจ้า <strong>' + esc(s.shopName || '') + '</strong>' +
+            (s.signatoryName ? ' โดย <strong>' + esc(s.signatoryName) + '</strong>' : '') +
+            '&nbsp;&nbsp;อยู่เลขที่&nbsp;&nbsp;' + esc(s.shopAddress || '') +
+            ' โทรศัพท์ ' + esc(s.shopPhone || '') +
+            ' เลขประจำตัวผู้เสียภาษี&nbsp;&nbsp;' + esc(s.shopTaxId || '') + '</p>' +
+            '<p>ข้าพเจ้า เป็นผู้มีคุณสมบัติครบถ้วนตามที่กำหนด และไม่เป็นผู้ทิ้งงานของทางราชการ</p>' +
+            '<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. ข้าพเจ้าขอเสนอพัสดุ รวมทั้งบริการและกำหนดเวลาส่งมอบ ดังต่อไปนี้</p>';
+        })();
+        if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['header-text']) {
+          if (!CKEDITOR.instances['header-text'].getData().trim()) {
+            CKEDITOR.instances['header-text'].setData(headerText);
+          }
+        } else {
+          var headerEl = document.getElementById('header-text');
+          if (headerEl && !headerEl.value.trim()) headerEl.value = headerText.replace(/<[^>]*>/g, '');
         }
         /* auto-fill footer_text */
-        var footerEl = document.getElementById('footer-text');
-        if (footerEl && !footerEl.value.trim()) {
+        var footerText = (function () {
           var creditDays = cust ? (cust.credit_days || '...') : '...';
-          footerEl.value =
-            'เงื่อนไข\n' +
-            '\n' +
-            'ซึ่งเป็นราคาที่รวมภาษีมูลค่าเพิ่ม รวมทั้งภาษีอากรอื่น และค่าใช้จ่ายทั้งปวงไว้ด้วยแล้ว\n' +
-            '3. คำเสนอนี้จะยืนอยู่เป็นระยะเวลา ' + creditDays + ' วัน นับตั้งแต่วันที่ได้ยื่นใบเสนอราคา\n' +
-            '4. กำหนดส่งมอบพัสดุตามรายละเอียดรายการข้างต้น ภายใน ' + creditDays + ' วัน นับถัดจากวันลงนามในใบสั่งซื้อ/สั่งจ้าง\n' +
-            '\tเสนอมา ณ วันที่                เดือน                            พ.ศ.\n' +
-            '\n' +
-            'ลงชื่อ.............................................................ผู้เจรจาตกลงราคา\n' +
-            '(' + (s.signatoryName || '') + ')\n' +
-            '\n' +
-            'ลงชื่อ.............................................................ผู้เสนอราคา\n' +
-            '(' + (s.signatoryName || '') + ')\n' +
-            'ตราประทับ (ถ้ามี)';
+          return '<p><strong>เงื่อนไข</strong></p>' +
+            '<p>&nbsp;</p>' +
+            '<p>ซึ่งเป็นราคาที่รวมภาษีมูลค่าเพิ่ม รวมทั้งภาษีอากรอื่น และค่าใช้จ่ายทั้งปวงไว้ด้วยแล้ว</p>' +
+            '<p>3. คำเสนอนี้จะยืนอยู่เป็นระยะเวลา ' + esc(creditDays) + ' วัน นับตั้งแต่วันที่ได้ยื่นใบเสนอราคา</p>' +
+            '<p>4. กำหนดส่งมอบพัสดุตามรายละเอียดรายการข้างต้น ภายใน ' + esc(creditDays) + ' วัน นับถัดจากวันลงนามในใบสั่งซื้อ/สั่งจ้าง</p>' +
+            '<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เสนอมา ณ วันที่&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เดือน&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;พ.ศ.</p>' +
+            '<p>&nbsp;</p>' +
+            '<p>ลงชื่อ.............................................................ผู้เจรจาตกลงราคา</p>' +
+            '<p>(' + esc(s.signatoryName || '') + ')</p>' +
+            '<p>&nbsp;</p>' +
+            '<p>ลงชื่อ.............................................................ผู้เสนอราคา</p>' +
+            '<p>(' + esc(s.signatoryName || '') + ')</p>' +
+            '<p>ตราประทับ (ถ้ามี)</p>';
+        })();
+        if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['footer-text']) {
+          if (!CKEDITOR.instances['footer-text'].getData().trim()) {
+            CKEDITOR.instances['footer-text'].setData(footerText);
+          }
+        } else {
+          var footerEl = document.getElementById('footer-text');
+          if (footerEl && !footerEl.value.trim()) footerEl.value = footerText.replace(/<[^>]*>/g, '');
         }
       });
     });
@@ -927,6 +944,38 @@ function initOrderForm() {
   document.getElementById('discount').addEventListener('input', recalc);
   document.getElementById('wht').addEventListener('input', recalc);
   document.getElementById('vat-mode').addEventListener('change', recalc);
+
+  /* Initialize CKEditor for header/footer */
+  if (typeof CKEDITOR !== 'undefined') {
+    if (CKEDITOR.instances['header-text']) CKEDITOR.instances['header-text'].destroy(true);
+    if (CKEDITOR.instances['footer-text']) CKEDITOR.instances['footer-text'].destroy(true);
+    CKEDITOR.replace('header-text', {
+      toolbar: [
+        { name: 'basicstyles', items: [ 'Bold', 'Italic', 'Underline' ] },
+        { name: 'paragraph', items: [ 'NumberedList', 'BulletedList' ] },
+        { name: 'links', items: [ 'Link' ] },
+        { name: 'insert', items: [ 'Table' ] },
+        { name: 'styles', items: [ 'Font', 'FontSize' ] },
+        { name: 'colors', items: [ 'TextColor' ] }
+      ],
+      height: 120,
+      removePlugins: 'elementspath',
+      resize_enabled: true
+    });
+    CKEDITOR.replace('footer-text', {
+      toolbar: [
+        { name: 'basicstyles', items: [ 'Bold', 'Italic', 'Underline' ] },
+        { name: 'paragraph', items: [ 'NumberedList', 'BulletedList' ] },
+        { name: 'links', items: [ 'Link' ] },
+        { name: 'insert', items: [ 'Table' ] },
+        { name: 'styles', items: [ 'Font', 'FontSize' ] },
+        { name: 'colors', items: [ 'TextColor' ] }
+      ],
+      height: 120,
+      removePlugins: 'elementspath',
+      resize_enabled: true
+    });
+  }
   document.getElementById('sale-mode').addEventListener('change', function () {
     var mode = this.value;
     ORDER_ITEMS.forEach(function (it) {
@@ -1122,14 +1171,14 @@ async function editOrder(orderId) {
         '<div class="form-group"><label>โหมดขาย</label><select id="sale-mode"><option value="RETAIL"' + (order.sale_mode === 'RETAIL' ? ' selected' : '') + '>ขายปลีก</option><option value="WHOLESALE"' + (order.sale_mode === 'WHOLESALE' ? ' selected' : '') + '>ขายส่ง</option></select></div>' +
         '<div class="form-group"><label>กำหนดส่ง</label><input id="due-date" type="date" value="' + esc(order.due_date || '') + '"></div>' +
       '</div>' +
-      '<div class="form-group"><label>ข้อความส่วนหัว (ก่อนตารางรายการ)</label><textarea id="header-text" rows="6" style="width:100%;font-family:inherit;font-size:13px;white-space:pre-wrap">' + esc(order.header_text || '') + '</textarea></div>' +
+      '<div class="form-group"><label>ข้อความส่วนหัว (ก่อนตารางรายการ)</label><textarea id="header-text" rows="6">' + esc(order.header_text || '') + '</textarea></div>' +
       '<h3 style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">รายการสินค้า' +
         '<button class="btn btn-primary" onclick="openItemPopup()">+ เพิ่มรายการสินค้า</button>' +
       '</h3>' +
       '<div class="table-wrap"><table class="data items-tbl"><thead><tr>' +
         '<th>#</th><th>สินค้า / รายละเอียด</th><th>ขนาด (ม.)</th><th class="num">จำนวน</th><th class="num">ตร.ม.</th><th class="num">ราคา/ตร.ม.</th><th class="num">เพิ่มพิเศษ</th><th>หมายเหตุ</th><th class="num">รวม (฿)</th><th></th>' +
       '</tr></thead><tbody id="items-tbody"></tbody></table></div>' +
-      '<div class="form-group" style="margin-top:10px"><label>ข้อความส่วนท้าย (หลังตารางรายการ)</label><textarea id="footer-text" rows="6" style="width:100%;font-family:inherit;font-size:13px;white-space:pre-wrap">' + esc(order.footer_text || '') + '</textarea></div>' +
+      '<div class="form-group" style="margin-top:10px"><label>ข้อความส่วนท้าย (หลังตารางรายการ)</label><textarea id="footer-text" rows="6">' + esc(order.footer_text || '') + '</textarea></div>' +
       '<div class="grid grid-3" style="margin-top:14px">' +
         '<div class="form-group"><label>ส่วนลด (฿)</label><input id="discount" type="number" value="' + (order.discount_amt || 0) + '" step="0.01"></div>' +
         '<div class="form-group"><label>รูปแบบภาษี</label><select id="vat-mode"><option value="NONE"' + (order.vat_mode === 'NONE' ? ' selected' : '') + '>ไม่มีภาษี</option><option value="EXCLUDE"' + (order.vat_mode === 'EXCLUDE' ? ' selected' : '') + '>ภาษี +7% (บวกเพิ่ม)</option><option value="INCLUDE"' + (order.vat_mode === 'INCLUDE' ? ' selected' : '') + '>ภาษีรวม</option></select></div>' +
@@ -1194,8 +1243,8 @@ async function updateOrder() {
     discount_amt: document.getElementById('discount').value,
     vat_mode: document.getElementById('vat-mode').value,
     wht_amount: document.getElementById('wht').value,
-    header_text: (document.getElementById('header-text') || {}).value || '',
-    footer_text: (document.getElementById('footer-text') || {}).value || '',
+    header_text: (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['header-text']) ? CKEDITOR.instances['header-text'].getData() : ((document.getElementById('header-text') || {}).value || ''),
+    footer_text: (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['footer-text']) ? CKEDITOR.instances['footer-text'].getData() : ((document.getElementById('footer-text') || {}).value || ''),
     items: items.map(function (it) {
       return {
         product_id: it.product_id,
@@ -1254,8 +1303,8 @@ async function saveOrder() {
     discount_amt: document.getElementById('discount').value,
     vat_mode: document.getElementById('vat-mode').value,
     wht_amount: document.getElementById('wht').value,
-    header_text: (document.getElementById('header-text') || {}).value || '',
-    footer_text: (document.getElementById('footer-text') || {}).value || '',
+    header_text: (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['header-text']) ? CKEDITOR.instances['header-text'].getData() : ((document.getElementById('header-text') || {}).value || ''),
+    footer_text: (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['footer-text']) ? CKEDITOR.instances['footer-text'].getData() : ((document.getElementById('footer-text') || {}).value || ''),
     items: items.map(function (it) {
       return {
         product_id: it.product_id,
@@ -1627,10 +1676,8 @@ function renderQuotation_(doc, order, items) {
 
   /* ใช้ header_text จาก snapshot ถ้ามี */
   if (order.header_text) {
-    var headerLines = order.header_text.split('\n');
-    for (var hi = 0; hi < headerLines.length; hi++) {
-      html += '<tr><td colspan="10" style="border:none;padding:1px 0;white-space:normal;word-wrap:break-word;line-height:1.6">' + esc(headerLines[hi]) + '</td></tr>';
-    }
+    /* CKEditor outputs HTML — render directly */
+    html += '<tr><td colspan="10" style="border:none;padding:4px 0;white-space:normal;word-wrap:break-word;line-height:1.6;font-size:16pt">' + order.header_text + '</td></tr>';
   } else {
     /* Row 4-5: เรียน + ที่อยู่ลูกค้า */
     html += '<tr><td colspan="2" class="b">เรียน</td><td colspan="8">' + esc(order.customer_name || '') + '</td></tr>';
@@ -1658,12 +1705,10 @@ function renderQuotation_(doc, order, items) {
 
   /* ใช้ footer_text จาก snapshot ถ้ามี */
   if (order.footer_text) {
-    var footerLines = order.footer_text.split('\n');
-    html += '<table class="doc" style="margin-top:8px"><tbody>';
-    for (var fi = 0; fi < footerLines.length; fi++) {
-      html += '<tr><td colspan="10" style="border:none;padding:1px 0;white-space:normal;word-wrap:break-word;line-height:1.6">' + esc(footerLines[fi]) + '</td></tr>';
-    }
-    html += '</tbody></table>';
+    /* CKEditor outputs HTML — render directly */
+    html += '<table class="doc" style="margin-top:8px"><tbody>' +
+      '<tr><td colspan="10" style="border:none;padding:4px 0;white-space:normal;word-wrap:break-word;line-height:1.6;font-size:16pt">' + order.footer_text + '</td></tr>' +
+      '</tbody></table>';
   } else {
     /* เงื่อนไข default */
     html += '<table class="doc" style="margin-top:8px"><tbody>' +
@@ -1899,8 +1944,23 @@ async function printOrder(orderId) {
   body += '<tr><td colspan="2" class="b">โหมดขาย</td><td colspan="8">' + (order.sale_mode === 'WHOLESALE' ? 'ขายส่ง' : 'ขายปลีก') + '</td></tr>';
   body += '<tr><td colspan="2" class="b">กำหนดส่ง</td><td colspan="8">' + fmtDateTh(order.due_date) + '</td></tr>';
   body += '</tbody></table>';
+
+  /* header_text from order */
+  if (order.header_text) {
+    body += '<table class="doc" style="margin-top:4px"><tbody>' +
+      '<tr><td colspan="10" style="border:none;padding:4px 0;white-space:normal;word-wrap:break-word;line-height:1.6;font-size:16pt">' + order.header_text + '</td></tr>' +
+      '</tbody></table>';
+  }
+
   body += printItemsTable10_(items, 1);
   body += printTotalRow_(grandTotal);
+
+  /* footer_text from order */
+  if (order.footer_text) {
+    body += '<table class="doc" style="margin-top:8px"><tbody>' +
+      '<tr><td colspan="10" style="border:none;padding:4px 0;white-space:normal;word-wrap:break-word;line-height:1.6;font-size:16pt">' + order.footer_text + '</td></tr>' +
+      '</tbody></table>';
+  }
 
   /* ลงชื่อ */
   body += '<table class="doc" style="margin-top:30px"><tbody><tr>' +
