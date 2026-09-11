@@ -385,8 +385,8 @@ function buildShell() {
     '</header>' +
     '<nav class="nav">' +
       '<button data-route="dashboard">แดชบอร์ด</button>' +
-      '<button data-route="orders">ใบสั่งจ้าง</button>' +
-      '<button data-route="order-form">สร้างใบสั่งจ้าง</button>' +
+      '<button data-route="orders">ใบสั่งจ้าง/ใบเสนอราคา</button>' +
+      '<button data-route="order-form">สร้างใบสั่งจ้าง/ใบเสนอราคา</button>' +
       '<button data-route="billing">วางบิล/เอกสาร</button>' +
       '<button data-route="print-doc">🖨️ พิมพ์เอกสาร</button>' +
       '<button data-route="payment">รับชำระ</button>' +
@@ -621,7 +621,7 @@ ROUTES.dashboard = function () {
         '<div class="card"><h2>งานค้างส่ง: <span style="color:var(--danger)">' + d.pending_deliveries + '</span></h2></div>' +
         '<div class="card" style="text-align:center"><div id="dash-clock" style="font-size:28px;font-weight:700;color:var(--primary)"></div><div id="dash-date" style="font-size:14px;color:var(--text-muted)"></div></div>' +
       '</div>' +
-      '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2>ใบสั่งจ้างล่าสุด</h2><a href="#" onclick="navigate(\'orders\');return false" style="color:var(--primary);font-weight:600;font-size:13px">ดูทั้งหมด →</a></div>' +
+      '<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><h2>ใบสั่งจ้าง/ใบเสนอราคาล่าสุด</h2><a href="#" onclick="navigate(\'orders\');return false" style="color:var(--primary);font-weight:600;font-size:13px">ดูทั้งหมด →</a></div>' +
         '<div class="table-wrap"><table class="data"><thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>วันที่</th><th>ยอดรวม</th><th>คงค้าง</th><th>สถานะ</th></tr></thead><tbody>' +
         (d.recent_orders.map(function (o) {
           return '<tr style="cursor:pointer" onclick="openOrderDetail(\'' + esc(o.id) + '\')"><td>' + esc(o.doc_no) + '</td><td>' + esc(o.customer_name) + '</td><td>' + fmtDateTh(o.order_date) + '</td><td>' + fmtMoney(o.grand_total) + '</td><td>' + fmtMoney(o.balance) + '</td><td>' + badgeFor(o.status) + '</td></tr>';
@@ -664,7 +664,7 @@ ROUTES.orders = function () {
     showPage(
       '<div class="card">' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">' +
-          '<h2 style="margin:0">รายการใบสั่งจ้าง <button class="btn btn-primary" onclick="navigate(\'order-form\')">+ สร้างใหม่</button></h2>' +
+          '<h2 style="margin:0">รายการใบสั่งจ้าง/ใบเสนอราคา <button class="btn btn-primary" onclick="navigate(\'order-form\')">+ สร้างใหม่</button></h2>' +
           '<div style="display:flex;align-items:center;gap:12px">' +
             '<span id="ord-count" style="font-size:13px;color:var(--text-muted)"></span>' +
             '<div style="display:flex;align-items:center;gap:4px"><label style="font-size:12px;color:var(--text-muted);white-space:nowrap">แสดง</label>' +
@@ -815,7 +815,7 @@ async function filterOrders() {
 /* ================== ORDER FORM ================== */
 ROUTES['order-form'] = function () {
   showPage(
-    '<div class="card"><h2>สร้างใบสั่งจ้าง</h2>' +
+    '<div class="card"><h2>สร้างใบสั่งจ้าง/ใบเสนอราคา</h2>' +
     '<div class="form-group"><label>เลือกลูกค้า (พิมพ์ค้นหา)</label>' +
       '<div class="pos-relative"><input id="cust-search" placeholder="ค้นหาชื่อ / เบอร์โทร..." autocomplete="off">' +
       '<ul id="cust-list" class="autocomplete-list" style="display:none"></ul></div>' +
@@ -840,7 +840,7 @@ ROUTES['order-form'] = function () {
       '<div class="form-group"><label>หัก ณ ที่จ่าย (฿)</label><input id="wht" type="number" value="0" step="0.01"></div>' +
     '</div>' +
     '<div class="total-box"><strong>ยอดรวม (Grand Total):</strong> ฿<span id="grand-total" style="font-weight:700;color:var(--primary)">0.00</span></div>' +
-    '<div style="margin-top:14px;display:flex;gap:8px"><button class="btn btn-primary" onclick="saveOrder()">บันทึกใบสั่งจ้าง</button><button class="btn btn-secondary" onclick="navigate(\'orders\')">ยกเลิก</button></div>' +
+    '<div style="margin-top:14px;display:flex;gap:8px"><button class="btn btn-primary" onclick="saveOrder()">บันทึกใบสั่งจ้าง/ใบเสนอราคา</button><button class="btn btn-secondary" onclick="navigate(\'orders\')">ยกเลิก</button></div>' +
     '</div>'
   );
   initOrderForm();
@@ -1151,16 +1151,16 @@ function itemLineAmount(it) {
 /* ================== ORDER EDIT ================== */
 async function editOrder(orderId) {
   var res = await api('getOrderDetail', { id: orderId });
-  if (!res || !res.ok) { toast((res && res.message) || 'ไม่พบใบสั่งจ้าง', 'error'); return; }
+  if (!res || !res.ok) { toast((res && res.message) || 'ไม่พบใบสั่งจ้าง/ใบเสนอราคา', 'error'); return; }
   var order = res.data.order;
   var items = res.data.items;
   if (order.status === 'CANCELLED' || order.status === 'PAID') {
-    toast('ใบสั่งจ้างนี้ไม่สามารถแก้ไขได้', 'error'); return;
+    toast('ใบสั่งจ้าง/ใบเสนอราคานี้ไม่สามารถแก้ไขได้', 'error'); return;
   }
   APP.EDITING_ORDER = order;
   ROUTES['order-form'] = function () {
     showPage(
-      '<div class="card"><h2>แก้ไขใบสั่งจ้าง ' + esc(order.doc_no) + '</h2>' +
+      '<div class="card"><h2>แก้ไขใบสั่งจ้าง/ใบเสนอราคา ' + esc(order.doc_no) + '</h2>' +
       '<div class="form-group"><label>เลือกลูกค้า (พิมพ์ค้นหา)</label>' +
         '<div class="pos-relative"><input id="cust-search" value="' + esc(order.customer_name) + '" placeholder="ค้นหาชื่อ / เบอร์โทร..." autocomplete="off">' +
         '<ul id="cust-list" class="autocomplete-list" style="display:none"></ul></div>' +
@@ -1222,7 +1222,7 @@ async function editOrder(orderId) {
 }
 
 async function updateOrder() {
-  if (!APP.EDITING_ORDER) { toast('ไม่พบใบสั่งจ้างที่แก้ไข', 'error'); return; }
+  if (!APP.EDITING_ORDER) { toast('ไม่พบใบสั่งจ้าง/ใบเสนอราคาที่แก้ไข', 'error'); return; }
   var custId = document.getElementById('cust-id').value;
   if (!custId) { toast('กรุณาเลือกลูกค้า', 'error'); return; }
   var items = getItems().filter(function (it) { return it.description; });
@@ -1261,7 +1261,7 @@ async function updateOrder() {
   var res = await api('updateOrder', payload);
   if (!res || !res.ok) { toast((res && res.message) || 'แก้ไขไม่สำเร็จ', 'error'); return; }
   APP.EDITING_ORDER = null;
-  toast('แก้ไขใบสั่งจ้าง ' + (res.data ? res.data.doc_no : '') + ' สำเร็จ', 'success');
+  toast('แก้ไขใบสั่งจ้าง/ใบเสนอราคา ' + (res.data ? res.data.doc_no : '') + ' สำเร็จ', 'success');
   setTimeout(function () { navigate('orders'); }, 500);
 }
 
@@ -1321,21 +1321,21 @@ async function saveOrder() {
   if (!payload.items.length) { toast('กรุณาเพิ่มรายการสินค้า', 'error'); return; }
   var res = await api('createOrder', payload);
   if (!res || !res.ok) { toast((res && res.message) || 'สร้างไม่สำเร็จ', 'error'); return; }
-  toast('สร้างใบสั่งจ้าง ' + res.data.doc_no + ' สำเร็จ', 'success');
+  toast('สร้างใบสั่งจ้าง/ใบเสนอราคา ' + res.data.doc_no + ' สำเร็จ', 'success');
   setTimeout(function () { navigate('orders'); }, 500);
 }
 
 /* ================== ORDER DETAIL ================== */
 async function openOrderDetail(orderId) {
   var res = await api('getOrderDetail', { id: orderId });
-  if (!res || !res.ok) { toast((res && res.message) || 'ไม่พบใบสั่งจ้าง', 'error'); return; }
+  if (!res || !res.ok) { toast((res && res.message) || 'ไม่พบใบสั่งจ้าง/ใบเสนอราคา', 'error'); return; }
   var order = res.data.order;
   var items = res.data.items;
   var rows = items.map(function (it) {
     return '<tr><td>' + esc(it.description) + '</td><td>' + esc(it.width_m) + 'x' + esc(it.height_m) + '</td><td>' + esc(it.qty) + '</td><td>' + esc(it.area_sqm) + '</td><td>' + fmtMoney(it.unit_price) + '</td><td>' + fmtMoney(it.line_total) + '</td></tr>';
   }).join('');
   Swal.fire({
-    title: 'ใบสั่งจ้าง ' + order.doc_no,
+    title: 'ใบสั่งจ้าง/ใบเสนอราคา ' + order.doc_no,
     html: '<div style="text-align:left">' +
       '<p><strong>ลูกค้า:</strong> ' + esc(order.customer_name) + '</p>' +
       '<p><strong>วันที่:</strong> ' + fmtDateTh(order.order_date) + ' &nbsp; <strong>สถานะ:</strong> ' + badgeFor(order.status) + '</p>' +
@@ -1381,7 +1381,7 @@ ROUTES.billing = function () {
     }).join('');
     showPage(
       '<div class="card"><h2>วางบิล / ออกเอกสาร</h2>' +
-      '<p class="muted" style="margin-bottom:12px">เลือกรายการเพื่อออกใบส่งของ/ใบวางบิล (DO/BN) ใบเสร็จ (RC) / ใบกำกับภาษี และพิมพ์เอกสาร — ใบส่งของกับใบวางบิลเป็นเอกสารเดียวกัน ออกได้ครั้งเดียวต่อใบสั่งจ้าง</p>' +
+      '<p class="muted" style="margin-bottom:12px">เลือกรายการเพื่อออกใบส่งของ/ใบวางบิล (DO/BN) ใบเสร็จ (RC) / ใบกำกับภาษี และพิมพ์เอกสาร — ใบส่งของกับใบวางบิลเป็นเอกสารเดียวกัน ออกได้ครั้งเดียวต่อใบสั่งจ้าง/ใบเสนอราคา</p>' +
       '<div class="filter-bar">' +
         '<div class="form-group" style="flex:1;min-width:200px"><label>ค้นหา</label><input id="bill-kw" placeholder="เลขที่ / ชื่อลูกค้า"></div>' +
         '<div class="form-group"><button class="btn btn-primary" onclick="filterBilling()">ค้นหา</button></div>' +
@@ -1417,7 +1417,7 @@ function hasReceipt(docs) {
 
 async function openBillingOrder(orderId) {
   var res = await api('getOrderDetail', { id: orderId });
-  if (!res || !res.ok) { toast((res && res.message) || 'ไม่พบใบสั่งจ้าง', 'error'); return; }
+  if (!res || !res.ok) { toast((res && res.message) || 'ไม่พบใบสั่งจ้าง/ใบเสนอราคา', 'error'); return; }
   var order = res.data.order;
   var dr = await api('listDocuments', { order_id: orderId });
   var docs = (dr && dr.data) || [];
@@ -1549,7 +1549,7 @@ async function loadPrintDocs_(typeFilter) {
   }).join('');
   container.innerHTML =
     '<div class="table-wrap"><table class="data"><thead><tr>' +
-      '<th>เลขที่</th><th>ประเภท</th><th>วันที่</th><th>ใบสั่งจ้าง</th><th>สถานะ</th><th>จัดการ</th>' +
+      '<th>เลขที่</th><th>ประเภท</th><th>วันที่</th><th>ใบสั่งจ้าง/ใบเสนอราคา</th><th>สถานะ</th><th>จัดการ</th>' +
     '</tr></thead><tbody>' + rows + '</tbody></table></div>';
 }
 
@@ -1922,10 +1922,10 @@ function showPrintPreview_(html, title) {
   doc2.close();
 }
 
-/* ================== พิมพ์ใบสั่งจ้าง (ไม่ผ่าน Documents) ================== */
+/* ================== พิมพ์ใบสั่งจ้าง/ใบเสนอราคา (ไม่ผ่าน Documents) ================== */
 async function printOrder(orderId) {
   var res = await api('getOrderDetail', { id: orderId });
-  if (!res || !res.ok) { toast('ไม่พบใบสั่งจ้าง', 'error'); return; }
+  if (!res || !res.ok) { toast('ไม่พบใบสั่งจ้าง/ใบเสนอราคา', 'error'); return; }
   var data = res.data;
   var order = data.order;
   var items = data.items || [];
@@ -1933,9 +1933,9 @@ async function printOrder(orderId) {
   var s = APP.settings || {};
   var grandTotal = order.grand_total || 0;
 
-  /* สร้าง body ใบสั่งจ้าง */
+  /* สร้าง body ใบสั่งจ้าง/ใบเสนอราคา */
   var body = '<table class="doc"><tbody>';
-  body += '<tr><td colspan="10" class="c b" style="font-size:18pt;padding:8px 0">ใบสั่งจ้าง</td></tr>';
+  body += '<tr><td colspan="10" class="c b" style="font-size:18pt;padding:8px 0">ใบสั่งจ้าง/ใบเสนอราคา</td></tr>';
   body += printShopInfo_();
   body += '<tr><td colspan="5"></td><td class="r b" colspan="3">เลขที่</td><td colspan="2">' + esc(order.doc_no || '') + '</td></tr>';
   body += '<tr><td colspan="5"></td><td class="r" colspan="3">วันที่</td><td colspan="2">' + fmtDateTh(order.order_date) + '</td></tr>';
@@ -1971,10 +1971,10 @@ async function printOrder(orderId) {
     '<td class="c" colspan="5" style="border:none;padding-top:4px">(&nbsp;)</td>' +
     '</tr></tbody></table>';
 
-  var html = '<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>ใบสั่งจ้าง ' + order.doc_no + '</title>' +
+  var html = '<!DOCTYPE html><html lang="th"><head><meta charset="UTF-8"><title>ใบสั่งจ้าง/ใบเสนอราคา ' + order.doc_no + '</title>' +
     '<style>' + printCSS_() + '</style></head><body>' +
     '<div class="print-toolbar">' +
-      '<span style="font-weight:600;font-size:14px">ใบสั่งจ้าง ' + esc(order.doc_no) + '</span>' +
+      '<span style="font-weight:600;font-size:14px">ใบสั่งจ้าง/ใบเสนอราคา ' + esc(order.doc_no) + '</span>' +
       '<span style="flex:1"></span>' +
       '<button class="print-btns" onclick="window.print()">🖨️ พิมพ์</button>' +
       '<button class="print-btns" style="background:#6b7280" onclick="window.close()">ปิด</button>' +
@@ -1982,7 +1982,7 @@ async function printOrder(orderId) {
     '<div style="padding:0 10mm">' + body + '</div>' +
     '</body></html>';
 
-  showPrintPreview_(html, 'ใบสั่งจ้าง ' + order.doc_no);
+  showPrintPreview_(html, 'ใบสั่งจ้าง/ใบเสนอราคา ' + order.doc_no);
 }
 
 /* ================== PAYMENT ================== */
@@ -2014,7 +2014,7 @@ async function loadDueOrders() {
 
 async function selectOrderToPay(orderId) {
   var res = await api('getOrderDetail', { id: orderId });
-  if (!res || !res.ok) { toast((res && res.message) || 'ไม่พบใบสั่งจ้าง', 'error'); return; }
+  if (!res || !res.ok) { toast((res && res.message) || 'ไม่พบใบสั่งจ้าง/ใบเสนอราคา', 'error'); return; }
   var order = res.data.order;
   APP.PAY_CURRENT_ORDER = order;
   var form = document.getElementById('pay-form');
