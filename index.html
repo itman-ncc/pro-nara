@@ -898,7 +898,7 @@ function initOrderForm() {
             ' โทรศัพท์ ' + esc(s.shopPhone || '') +
             ' เลขประจำตัวผู้เสียภาษี&nbsp;&nbsp;' + esc(s.shopTaxId || '') + '</p>' +
             '<p>ข้าพเจ้า เป็นผู้มีคุณสมบัติครบถ้วนตามที่กำหนด และไม่เป็นผู้ทิ้งงานของทางราชการ</p>' +
-            '<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. ข้าพเจ้าขอเสนอพัสดุ รวมทั้งบริการและกำหนดเวลาส่งมอบ ดังต่อไปนี้</p>';
+            '<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. ข้าพเจ้าขอเสนอราคาสินค้า/รวมทั้งบริการและกำหนดเวลาส่งมอบ ดังต่อไปนี้</p>';
         })();
         if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['header-text']) {
           if (!CKEDITOR.instances['header-text'].getData().trim()) {
@@ -1692,7 +1692,7 @@ function renderQuotation_(doc, order, items) {
       (s.shopPhone ? ' โทรศัพท์ ' + esc(s.shopPhone) : '') +
       (s.shopTaxId ? ' เลขประจำตัวผู้เสียภาษี ' + esc(s.shopTaxId) : '') +
       '<br>ข้าพเจ้า เป็นผู้มีคุณสมบัติครบถ้วนตามที่กำหนด และไม่เป็นผู้ทิ้งงานของทางราชการ' +
-      '<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. ข้าพเจ้าขอเสนอพัสดุ รวมทั้งบริการและกำหนดเวลาส่งมอบ ดังต่อไปนี้</td></tr>';
+      '<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. ข้าพเจ้าขอเสนอราคาสินค้า/รวมทั้งบริการและกำหนดเวลาส่งมอบ ดังต่อไปนี้</td></tr>';
   }
 
   html += '</tbody></table>';
