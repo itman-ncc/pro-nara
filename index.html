@@ -833,7 +833,10 @@ ROUTES['order-form'] = function () {
     '<div class="table-wrap"><table class="data items-tbl"><thead><tr>' +
       '<th>#</th><th>สินค้า / รายละเอียด</th><th>ขนาด (ม.)</th><th class="num">จำนวน</th><th class="num">ตร.ม.</th><th class="num">ราคา/ตร.ม.</th><th class="num">เพิ่มพิเศษ</th><th>หมายเหตุ</th><th class="num">รวม (฿)</th><th></th>' +
     '</tr></thead><tbody id="items-tbody"></tbody></table></div>' +
-    '<div class="form-group" style="margin-top:10px"><label>ข้อความส่วนท้าย (หลังตารางรายการ)</label><textarea id="footer-text" rows="6"></textarea></div>' +
+    '<div class="grid grid-2" style="margin-top:10px">' +
+      '<div class="form-group"><label>ระยะเวลาเสนอราคา (วัน)</label><input id="credit-days" type="number" value="15" min="1"></div>' +
+    '</div>' +
+    '<div class="form-group"><label>ข้อความส่วนท้าย (หลังตารางรายการ)</label><textarea id="footer-text" rows="6"></textarea></div>' +
     '<div class="grid grid-3" style="margin-top:14px">' +
       '<div class="form-group"><label>ส่วนลด (฿)</label><input id="discount" type="number" value="0" step="0.01"></div>' +
       '<div class="form-group"><label>รูปแบบภาษี</label><select id="vat-mode"><option value="NONE">ไม่มีภาษี</option><option value="EXCLUDE">ภาษี +7% (บวกเพิ่ม)</option><option value="INCLUDE">ภาษีรวม</option></select></div>' +
@@ -910,7 +913,8 @@ function initOrderForm() {
         }
         /* auto-fill footer_text */
         var footerText = (function () {
-          var creditDays = cust ? (cust.credit_days || '...') : '...';
+          var creditEl = document.getElementById('credit-days');
+          var creditDays = (creditEl && creditEl.value) ? creditEl.value : '15';
           return '<p><strong>เงื่อนไข</strong></p>' +
             '<p>&nbsp;</p>' +
             '<p>ซึ่งเป็นราคาที่รวมภาษีมูลค่าเพิ่ม รวมทั้งภาษีอากรอื่น และค่าใช้จ่ายทั้งปวงไว้ด้วยแล้ว</p>' +
@@ -976,6 +980,30 @@ function initOrderForm() {
       resize_enabled: true
     });
   }
+  /* Rebuild footer when credit-days changes */
+  document.getElementById('credit-days').addEventListener('input', function () {
+    var s = APP.settings || {};
+    var creditDays = this.value || '15';
+    var footerText = '<p><strong>เงื่อนไข</strong></p>' +
+      '<p>&nbsp;</p>' +
+      '<p>ซึ่งเป็นราคาที่รวมภาษีมูลค่าเพิ่ม รวมทั้งภาษีอากรอื่น และค่าใช้จ่ายทั้งปวงไว้ด้วยแล้ว</p>' +
+      '<p>3. คำเสนอนี้จะยืนอยู่เป็นระยะเวลา ' + esc(creditDays) + ' วัน นับตั้งแต่วันที่ได้ยื่นใบเสนอราคา</p>' +
+      '<p>4. กำหนดส่งมอบพัสดุตามรายละเอียดรายการข้างต้น ภายใน ' + esc(creditDays) + ' วัน นับถัดจากวันลงนามในใบสั่งซื้อ/สั่งจ้าง</p>' +
+      '<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เสนอมา ณ วันที่&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;เดือน&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;พ.ศ.</p>' +
+      '<p>&nbsp;</p>' +
+      '<p>ลงชื่อ.............................................................ผู้เจรจาตกลงราคา</p>' +
+      '<p>(' + esc(s.signatoryName || '') + ')</p>' +
+      '<p>&nbsp;</p>' +
+      '<p>ลงชื่อ.............................................................ผู้เสนอราคา</p>' +
+      '<p>(' + esc(s.signatoryName || '') + ')</p>' +
+      '<p>ตราประทับ (ถ้ามี)</p>';
+    if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['footer-text']) {
+      CKEDITOR.instances['footer-text'].setData(footerText);
+    } else {
+      var footerEl = document.getElementById('footer-text');
+      if (footerEl) footerEl.value = footerText.replace(/<[^>]*>/g, '');
+    }
+  });
   document.getElementById('sale-mode').addEventListener('change', function () {
     var mode = this.value;
     ORDER_ITEMS.forEach(function (it) {
@@ -1178,7 +1206,10 @@ async function editOrder(orderId) {
       '<div class="table-wrap"><table class="data items-tbl"><thead><tr>' +
         '<th>#</th><th>สินค้า / รายละเอียด</th><th>ขนาด (ม.)</th><th class="num">จำนวน</th><th class="num">ตร.ม.</th><th class="num">ราคา/ตร.ม.</th><th class="num">เพิ่มพิเศษ</th><th>หมายเหตุ</th><th class="num">รวม (฿)</th><th></th>' +
       '</tr></thead><tbody id="items-tbody"></tbody></table></div>' +
-      '<div class="form-group" style="margin-top:10px"><label>ข้อความส่วนท้าย (หลังตารางรายการ)</label><textarea id="footer-text" rows="6">' + esc(order.footer_text || '') + '</textarea></div>' +
+      '<div class="grid grid-2" style="margin-top:10px">' +
+        '<div class="form-group"><label>ระยะเวลาเสนอราคา (วัน)</label><input id="credit-days" type="number" value="' + esc(order.credit_days || 15) + '" min="1"></div>' +
+      '</div>' +
+      '<div class="form-group"><label>ข้อความส่วนท้าย (หลังตารางรายการ)</label><textarea id="footer-text" rows="6">' + esc(order.footer_text || '') + '</textarea></div>' +
       '<div class="grid grid-3" style="margin-top:14px">' +
         '<div class="form-group"><label>ส่วนลด (฿)</label><input id="discount" type="number" value="' + (order.discount_amt || 0) + '" step="0.01"></div>' +
         '<div class="form-group"><label>รูปแบบภาษี</label><select id="vat-mode"><option value="NONE"' + (order.vat_mode === 'NONE' ? ' selected' : '') + '>ไม่มีภาษี</option><option value="EXCLUDE"' + (order.vat_mode === 'EXCLUDE' ? ' selected' : '') + '>ภาษี +7% (บวกเพิ่ม)</option><option value="INCLUDE"' + (order.vat_mode === 'INCLUDE' ? ' selected' : '') + '>ภาษีรวม</option></select></div>' +
