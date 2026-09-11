@@ -203,7 +203,6 @@
   /* Print template (A4) */
   @media print { body * { visibility: hidden; } #print-area, #print-area * { visibility: visible; } #print-area { position: absolute; left: 0; top: 0; width: 100%; } }
 </style>
-<script src="https://cdn.ckeditor.com/4.25.2-lts/standard/ckeditor.js"></script>
 </head>
 <body>
 <div id="app"></div>
@@ -225,6 +224,74 @@ var APP = {
   ORDER_CACHE: null,
   loggingOut: false   // ป้องกันการ render error จาก request ที่ค้างหลัง logout
 };
+
+/* ================== CKEDITOR LOADER (async + fallback CDN) ================== */
+var CK_SOURCES = [
+  'https://cdn.ckeditor.com/4.25.2-lts/standard/ckeditor.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/ckeditor/4.25.0-lts/ckeditor.js'
+];
+var _ckIndex = 0;
+var _ckLoading = null;
+function loadCK_(cb) {
+  if (typeof CKEDITOR !== 'undefined') { if (cb) cb(true); return; }
+  if (_ckLoading) { if (cb) _ckLoading.push(cb); return; }
+  _ckLoading = [];
+  if (cb) _ckLoading.push(cb);
+  tryInjectCK_();
+}
+function tryInjectCK_() {
+  var src = CK_SOURCES[_ckIndex];
+  if (!src) { notifyCKReady_(false); return; }
+  var s = document.createElement('script');
+  s.src = src;
+  s.async = true;
+  s.onload = function () {
+    if (typeof CKEDITOR !== 'undefined') { notifyCKReady_(true); }
+    else { _ckIndex++; tryInjectCK_(); }
+  };
+  s.onerror = function () { _ckIndex++; tryInjectCK_(); };
+  (document.head || document.documentElement).appendChild(s);
+}
+function notifyCKReady_(ok) {
+  var q = _ckLoading || [];
+  _ckLoading = null;
+  q.forEach(function (cb) { try { cb(ok); } catch (e) {} });
+}
+function initRichText_() {
+  if (typeof CKEDITOR === 'undefined' || !document.getElementById('header-text') || !document.getElementById('footer-text')) return;
+  if (CKEDITOR.instances['header-text']) CKEDITOR.instances['header-text'].destroy(true);
+  if (CKEDITOR.instances['footer-text']) CKEDITOR.instances['footer-text'].destroy(true);
+  var baseCfg = {
+    height: 120,
+    removePlugins: 'elementspath',
+    resize_enabled: true
+  };
+  baseCfg.toolbar = [
+    { name: 'basicstyles', items: [ 'Bold', 'Italic', 'Underline' ] },
+    { name: 'paragraph', items: [ 'NumberedList', 'BulletedList' ] },
+    { name: 'links', items: [ 'Link' ] },
+    { name: 'insert', items: [ 'Table' ] },
+    { name: 'styles', items: [ 'Font', 'FontSize' ] },
+    { name: 'colors', items: [ 'TextColor' ] }
+  ];
+  CKEDITOR.replace('header-text', baseCfg);
+  CKEDITOR.replace('footer-text', baseCfg);
+}
+function setRichText_(id, html) {
+  if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances[id]) {
+    CKEDITOR.instances[id].setData(html || '');
+  } else {
+    var el = document.getElementById(id);
+    if (el) el.value = String(html || '').replace(/<[^>]*>/g, '');
+  }
+}
+function getRichText_(id) {
+  if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances[id]) {
+    return CKEDITOR.instances[id].getData();
+  }
+  var el = document.getElementById(id);
+  return el ? (el.value || '') : '';
+}
 
 /* ================== UTIL ================== */
 function esc(s) {
@@ -903,14 +970,7 @@ function initOrderForm() {
             '<p>ข้าพเจ้า เป็นผู้มีคุณสมบัติครบถ้วนตามที่กำหนด และไม่เป็นผู้ทิ้งงานของทางราชการ</p>' +
             '<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2. ข้าพเจ้าขอเสนอราคาสินค้า/รวมทั้งบริการและกำหนดเวลาส่งมอบ ดังต่อไปนี้</p>';
         })();
-        if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['header-text']) {
-          if (!CKEDITOR.instances['header-text'].getData().trim()) {
-            CKEDITOR.instances['header-text'].setData(headerText);
-          }
-        } else {
-          var headerEl = document.getElementById('header-text');
-          if (headerEl && !headerEl.value.trim()) headerEl.value = headerText.replace(/<[^>]*>/g, '');
-        }
+        if (!getRichText_('header-text').trim()) setRichText_('header-text', headerText);
         /* auto-fill footer_text */
         var footerText = (function () {
           var creditEl = document.getElementById('credit-days');
@@ -929,14 +989,7 @@ function initOrderForm() {
             '<p>(' + esc(s.signatoryName || '') + ')</p>' +
             '<p>ตราประทับ (ถ้ามี)</p>';
         })();
-        if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['footer-text']) {
-          if (!CKEDITOR.instances['footer-text'].getData().trim()) {
-            CKEDITOR.instances['footer-text'].setData(footerText);
-          }
-        } else {
-          var footerEl = document.getElementById('footer-text');
-          if (footerEl && !footerEl.value.trim()) footerEl.value = footerText.replace(/<[^>]*>/g, '');
-        }
+        if (!getRichText_('footer-text').trim()) setRichText_('footer-text', footerText);
       });
     });
   });
@@ -949,37 +1002,8 @@ function initOrderForm() {
   document.getElementById('wht').addEventListener('input', recalc);
   document.getElementById('vat-mode').addEventListener('change', recalc);
 
-  /* Initialize CKEditor for header/footer */
-  if (typeof CKEDITOR !== 'undefined') {
-    if (CKEDITOR.instances['header-text']) CKEDITOR.instances['header-text'].destroy(true);
-    if (CKEDITOR.instances['footer-text']) CKEDITOR.instances['footer-text'].destroy(true);
-    CKEDITOR.replace('header-text', {
-      toolbar: [
-        { name: 'basicstyles', items: [ 'Bold', 'Italic', 'Underline' ] },
-        { name: 'paragraph', items: [ 'NumberedList', 'BulletedList' ] },
-        { name: 'links', items: [ 'Link' ] },
-        { name: 'insert', items: [ 'Table' ] },
-        { name: 'styles', items: [ 'Font', 'FontSize' ] },
-        { name: 'colors', items: [ 'TextColor' ] }
-      ],
-      height: 120,
-      removePlugins: 'elementspath',
-      resize_enabled: true
-    });
-    CKEDITOR.replace('footer-text', {
-      toolbar: [
-        { name: 'basicstyles', items: [ 'Bold', 'Italic', 'Underline' ] },
-        { name: 'paragraph', items: [ 'NumberedList', 'BulletedList' ] },
-        { name: 'links', items: [ 'Link' ] },
-        { name: 'insert', items: [ 'Table' ] },
-        { name: 'styles', items: [ 'Font', 'FontSize' ] },
-        { name: 'colors', items: [ 'TextColor' ] }
-      ],
-      height: 120,
-      removePlugins: 'elementspath',
-      resize_enabled: true
-    });
-  }
+  /* Load CKEditor (async) และ initialize หลังโหลดเสร็จ */
+  loadCK_(function (ok) { if (ok) initRichText_(); });
   /* Rebuild footer when credit-days changes */
   document.getElementById('credit-days').addEventListener('input', function () {
     var s = APP.settings || {};
@@ -997,12 +1021,7 @@ function initOrderForm() {
       '<p>ลงชื่อ.............................................................ผู้เสนอราคา</p>' +
       '<p>(' + esc(s.signatoryName || '') + ')</p>' +
       '<p>ตราประทับ (ถ้ามี)</p>';
-    if (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['footer-text']) {
-      CKEDITOR.instances['footer-text'].setData(footerText);
-    } else {
-      var footerEl = document.getElementById('footer-text');
-      if (footerEl) footerEl.value = footerText.replace(/<[^>]*>/g, '');
-    }
+    setRichText_('footer-text', footerText);
   });
   document.getElementById('sale-mode').addEventListener('change', function () {
     var mode = this.value;
@@ -1274,8 +1293,8 @@ async function updateOrder() {
     discount_amt: document.getElementById('discount').value,
     vat_mode: document.getElementById('vat-mode').value,
     wht_amount: document.getElementById('wht').value,
-    header_text: (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['header-text']) ? CKEDITOR.instances['header-text'].getData() : ((document.getElementById('header-text') || {}).value || ''),
-    footer_text: (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['footer-text']) ? CKEDITOR.instances['footer-text'].getData() : ((document.getElementById('footer-text') || {}).value || ''),
+    header_text: getRichText_('header-text'),
+    footer_text: getRichText_('footer-text'),
     items: items.map(function (it) {
       return {
         product_id: it.product_id,
@@ -1334,8 +1353,8 @@ async function saveOrder() {
     discount_amt: document.getElementById('discount').value,
     vat_mode: document.getElementById('vat-mode').value,
     wht_amount: document.getElementById('wht').value,
-    header_text: (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['header-text']) ? CKEDITOR.instances['header-text'].getData() : ((document.getElementById('header-text') || {}).value || ''),
-    footer_text: (typeof CKEDITOR !== 'undefined' && CKEDITOR.instances['footer-text']) ? CKEDITOR.instances['footer-text'].getData() : ((document.getElementById('footer-text') || {}).value || ''),
+    header_text: getRichText_('header-text'),
+    footer_text: getRichText_('footer-text'),
     items: items.map(function (it) {
       return {
         product_id: it.product_id,
